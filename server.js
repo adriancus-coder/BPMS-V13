@@ -106,6 +106,13 @@ function summarizeEvent(event) {
   };
 }
 
+const BUFFER_CONNECTORS = new Set([
+  'și', 'si', 'să', 'sa', 'că', 'ca', 'dar', 'iar', 'ori', 'sau',
+  'de', 'la', 'în', 'in', 'cu', 'pe', 'din', 'spre', 'pentru',
+  'când', 'cand', 'care', 'ce', 'către', 'catre',
+  'og', 'at', 'men', 'som', 'i', 'på', 'med', 'til', 'for'
+]);
+
 function sanitizeTranscriptText(text) {
   return String(text || '')
     .replace(/…/g, '')
@@ -116,11 +123,15 @@ function sanitizeTranscriptText(text) {
 }
 
 function countWords(text) {
-  function getLastWord(text) {
+  return sanitizeTranscriptText(text).split(/\s+/).filter(Boolean).length;
+}
+
+function getLastWord(text) {
   const words = sanitizeTranscriptText(text).split(/\s+/).filter(Boolean);
   return (words[words.length - 1] || '').toLowerCase();
 }
-  function startsWithLowercase(text) {
+
+function startsWithLowercase(text) {
   const clean = sanitizeTranscriptText(text);
   if (!clean) return false;
   const first = clean.trim().charAt(0);
@@ -135,11 +146,6 @@ function endsWithStrongPunctuation(text) {
   return /[.!?]$/.test(sanitizeTranscriptText(text));
 }
 
-function getLastWord(text) {
-  const words = sanitizeTranscriptText(text).split(/\s+/).filter(Boolean);
-  return (words[words.length - 1] || '').toLowerCase();
-}
-
 function startsLikeContinuation(text) {
   const clean = sanitizeTranscriptText(text);
   if (!clean) return false;
@@ -147,8 +153,6 @@ function startsLikeContinuation(text) {
   if (startsWithLowercase(clean)) return true;
 
   return /^(și|si|să|sa|că|ca|dar|iar|ori|sau|de|din|în|in|cu|pe|la|pentru|când|cand|care|ce)\b/i.test(clean);
-}
-  return String(text || '').trim().split(/\s+/).filter(Boolean).length;
 }
 
 function mergeTranscriptText(prevText, nextText) {
@@ -276,7 +280,6 @@ function queueSpeechText(eventId, text) {
     flushSpeechBuffer(eventId, false).catch(console.error);
   }, 2600);
 }
-
 function normalizeEvent(event) {
   return {
     id: event.id,
