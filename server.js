@@ -116,6 +116,34 @@ function sanitizeTranscriptText(text) {
 }
 
 function countWords(text) {
+  function startsWithLowercase(text) {
+  const clean = sanitizeTranscriptText(text);
+  if (!clean) return false;
+  const first = clean.trim().charAt(0);
+  return first === first.toLowerCase() && first !== first.toUpperCase();
+}
+
+function endsWithWeakPunctuation(text) {
+  return /[,;:]$/.test(sanitizeTranscriptText(text));
+}
+
+function endsWithStrongPunctuation(text) {
+  return /[.!?]$/.test(sanitizeTranscriptText(text));
+}
+
+function getLastWord(text) {
+  const words = sanitizeTranscriptText(text).split(/\s+/).filter(Boolean);
+  return (words[words.length - 1] || '').toLowerCase();
+}
+
+function startsLikeContinuation(text) {
+  const clean = sanitizeTranscriptText(text);
+  if (!clean) return false;
+
+  if (startsWithLowercase(clean)) return true;
+
+  return /^(și|si|să|sa|că|ca|dar|iar|ori|sau|de|din|în|in|cu|pe|la|pentru|când|cand|care|ce)\b/i.test(clean);
+}
   return String(text || '').trim().split(/\s+/).filter(Boolean).length;
 }
 
