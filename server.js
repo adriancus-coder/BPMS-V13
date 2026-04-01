@@ -242,22 +242,35 @@ function queueSpeechText(eventId, text) {
   const clean = sanitizeTranscriptText(text);
   if (!clean) return;
 
-  const prev = speechBuffers.get(eventId) || { text: '', timer: null };
+  const prev = speechBuffers.get(eventId) || { text: '', timer: null, startedAt: Date.now() };
   const merged = mergeTranscriptText(prev.text, clean);
 
   if (prev.timer) clearTimeout(prev.timer);
 
-  const next = { text: merged, timer: null };
+  const next = {
+    text: merged,
+    timer: null,
+    startedAt: prev.startedAt || Date.now()
+  };
+
   speechBuffers.set(eventId, next);
 
+  const ageMs = Date.now() - next.startedAt;
+  const words = countWords(merged);
+
   if (shouldFlushBufferedText(merged)) {
+    flushSpeechBuffer(eventId, false).catch(console.error);
+    return;
+  }
+
+  if (ageMs > 9000 || words >= 24) {
     flushSpeechBuffer(eventId, true).catch(console.error);
     return;
   }
 
   next.timer = setTimeout(() => {
-    flushSpeechBuffer(eventId, true).catch(console.error);
-  }, 1800);
+    flushSpeechBuffer(eventId, false).catch(console.error);
+  }, 2600);
 }
 
 function normalizeEvent(event) {
