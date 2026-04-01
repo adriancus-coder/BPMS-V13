@@ -116,6 +116,10 @@ function sanitizeTranscriptText(text) {
 }
 
 function countWords(text) {
+  function getLastWord(text) {
+  const words = sanitizeTranscriptText(text).split(/\s+/).filter(Boolean);
+  return (words[words.length - 1] || '').toLowerCase();
+}
   function startsWithLowercase(text) {
   const clean = sanitizeTranscriptText(text);
   if (!clean) return false;
