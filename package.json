@@ -1,0 +1,17 @@
+{
+  "name": "bpms-live-translate-v8-admin-only",
+  "version": "1.0.0",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "openai": "^4.104.0",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.1",
+    "multer": "^2.0.0"
+  }
+}
