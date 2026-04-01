@@ -170,8 +170,20 @@ function mergeTranscriptText(prevText, nextText) {
 function shouldFlushBufferedText(text) {
   const clean = sanitizeTranscriptText(text);
   if (!clean) return false;
-  if (/[.!?]$/.test(clean)) return true;
-  if (countWords(clean) >= 14) return true;
+
+  const words = countWords(clean);
+  const last = getLastWord(clean);
+
+  if (endsWithWeakPunctuation(clean)) return false;
+
+  if (endsWithStrongPunctuation(clean) && words >= 5) {
+    return true;
+  }
+
+  if (words >= 18 && !BUFFER_CONNECTORS.has(last) && !endsWithWeakPunctuation(clean)) {
+    return true;
+  }
+
   return false;
 }
 
@@ -180,15 +192,50 @@ async function flushSpeechBuffer(eventId, force = false) {
   if (!buffered) return null;
 
   if (buffered.timer) clearTimeout(buffered.timer);
-  speechBuffers.delete(eventId);
 
   const event = db.events[eventId];
-  if (!event) return null;
+  if (!event) {
+    speechBuffers.delete(eventId);
+    return null;
+  }
 
   const text = sanitizeTranscriptText(buffered.text);
-  if (!text) return null;
+  if (!text) {
+    speechBuffers.delete(eventId);
+    return null;
+  }
 
-  return processText(event, text, { force });
+  const words = countWords(text);
+  const last = getLastWord(text);
+
+  if (!force) {
+    if (endsWithWeakPunctuation(text)) {
+      buffered.timer = setTimeout(() => {
+        flushSpeechBuffer(eventId, true).catch(console.error);
+      }, 2600);
+      speechBuffers.set(eventId, buffered);
+      return null;
+    }
+
+    if (startsLikeContinuation(text) && words < 10) {
+      buffered.timer = setTimeout(() => {
+        flushSpeechBuffer(eventId, true).catch(console.error);
+      }, 2600);
+      speechBuffers.set(eventId, buffered);
+      return null;
+    }
+
+    if (BUFFER_CONNECTORS.has(last) && words < 14) {
+      buffered.timer = setTimeout(() => {
+        flushSpeechBuffer(eventId, true).catch(console.error);
+      }, 2600);
+      speechBuffers.set(eventId, buffered);
+      return null;
+    }
+  }
+
+  speechBuffers.delete(eventId);
+  return processText(event, text, { force: true });
 }
 
 function queueSpeechText(eventId, text) {
