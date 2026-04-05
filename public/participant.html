@@ -21,17 +21,20 @@
       <div class="panel stack-gap">
         <label>Limba mea</label>
         <select id="languageSelect">
-          <option value="no">Norvegiană</option>
+          <option value="ro">Română</option>
+          <option value="no" selected>Norvegiană</option>
           <option value="ru">Rusă</option>
           <option value="uk">Ucraineană</option>
           <option value="en">Engleză</option>
           <option value="es">Spaniolă</option>
         </select>
       </div>
+
       <div class="panel stack-gap">
         <button id="playAudioBtn" class="btn-green big">Play audio</button>
         <button id="pauseAudioBtn" class="btn-dark big">Pause audio</button>
       </div>
+
       <div class="panel stack-gap">
         <div id="participantStatus" class="status">Conectare...</div>
         <div class="small">Pagina se reconectează singură când revii în ea.</div>
@@ -39,11 +42,18 @@
     </div>
 
     <div class="panel participant-last-panel">
+      <div id="participantUpdatingBadge" class="participant-updating" style="display:none">
+        Se actualizează...
+      </div>
+
       <div class="small">Ultima traducere</div>
-      <div id="lastText" class="last-highlight compact-last" style="margin-top:12px">Aștept traducerea...</div>
+      <div id="lastText" class="last-highlight compact-last" style="margin-top:12px">
+        Aștept traducerea...
+      </div>
       <div id="history" class="history compact-history"></div>
     </div>
   </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="/participant.js"></script>
 </body>
