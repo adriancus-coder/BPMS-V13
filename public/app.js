@@ -147,6 +147,23 @@ function copyField(id, buttonId) {
   }).catch(() => setStatus('Nu am putut copia linkul.'));
 }
 
+async function copyTextQuick(text, button) {
+  const clean = String(text || '').trim();
+  if (!clean) return;
+
+  try {
+    await navigator.clipboard.writeText(clean);
+    if (!button) return;
+    const old = button.textContent;
+    button.textContent = 'Copied';
+    setTimeout(() => {
+      button.textContent = old;
+    }, 1200);
+  } catch {
+    setStatus('Nu am putut copia textul.');
+  }
+}
+
 function shareWhatsApp(id) {
   const value = ($(id)?.value || '').trim();
   if (!value) return;
@@ -202,12 +219,23 @@ function openInlineEditor(entryId) {
   const editor = card.querySelector('.inline-editor');
   if (editor) editor.classList.add('open');
 
-  const textarea = card.querySelector('.inline-source');
-  if (textarea) {
-    textarea.focus();
-    textarea.selectionStart = textarea.value.length;
-    textarea.selectionEnd = textarea.value.length;
-  }
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const textarea = card.querySelector('.inline-source');
+      if (!textarea) return;
+
+      try {
+        textarea.focus({ preventScroll: true });
+      } catch {
+        textarea.focus();
+      }
+
+      textarea.selectionStart = textarea.value.length;
+      textarea.selectionEnd = textarea.value.length;
+
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  });
 }
 
 function closeInlineEditors() {
@@ -231,7 +259,10 @@ function renderEntry(entry) {
   div.innerHTML = `
     <div class="entry-meta">${formatDateTime(entry.createdAt)}</div>
     <div class="entry-head row space-between">
-      <div class="orig"><b>${sourceLabel}:</b> ${escapeHtml(entry.original)}</div>
+      <div class="transcript-source-row">
+        <div class="orig"><b>${sourceLabel}:</b> ${escapeHtml(entry.original)}</div>
+        <button class="entry-copy-btn" type="button">Copy fraza</button>
+      </div>
       ${editedBadge}
     </div>
     ${translations}
@@ -248,6 +279,11 @@ function renderEntry(entry) {
   div.addEventListener('click', (e) => {
     if (e.target.closest('button') || e.target.closest('textarea')) return;
     openInlineEditor(entry.id);
+  });
+
+  div.querySelector('.entry-copy-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    copyTextQuick(entry.original, e.currentTarget);
   });
 
   div.querySelector('.inline-save')?.addEventListener('click', (e) => {
@@ -299,6 +335,14 @@ function updateSourceEntry({ entryId, sourceLang, original, translations }) {
   if (orig) {
     const sourceLabel = langNames[sourceLang] || sourceLang?.toUpperCase() || 'Origine';
     orig.innerHTML = `<b>${sourceLabel}:</b> ${escapeHtml(original)}`;
+  }
+
+  const copyBtn = entry.querySelector('.entry-copy-btn');
+  if (copyBtn) {
+    copyBtn.onclick = (e) => {
+      e.stopPropagation();
+      copyTextQuick(original, copyBtn);
+    };
   }
 
   const textarea = entry.querySelector('.inline-source');
@@ -438,7 +482,6 @@ async function openEventById(eventId) {
     await refreshEventList();
     setStatus(`Ai deschis evenimentul: ${currentEvent.name || 'Eveniment'}.`);
     switchTab('live');
-    document.querySelector('.transcript-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
     console.error(err);
   }
@@ -916,6 +959,7 @@ socket.on('active_event_changed', async ({ eventId }) => {
 $('createEventBtn').addEventListener('click', createEvent);
 $('sendManualBtn').addEventListener('click', sendManualText);
 $('speed').addEventListener('change', syncSpeedToEvent);
+$('openTranscriptTabBtn').addEventListener('click', () => switchTab('transcript'));
 
 $('manualText').addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || e.shiftKey) return;
@@ -1048,7 +1092,7 @@ $('refreshEventsBtn').addEventListener('click', refreshEventList);
 $('jumpLiveBtn').addEventListener('click', () => {
   sourceEditLock = false;
   closeInlineEditors();
-  switchTab('live');
+  switchTab('transcript');
   const first = document.querySelector('#transcriptList .entry');
   if (first) {
     first.scrollIntoView({ behavior: 'smooth', block: 'start' });
