@@ -625,3 +625,33 @@ label:has(#monitorAudioBox) {
     font-size: 30px;
   }
 }
+#onAirBadge {
+  min-width: 92px;
+  justify-content: center;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  transition: all 0.18s ease;
+}
+
+#onAirBadge.status-pill {
+  background: #2a1114;
+  border-color: #6b2b37;
+  color: #ffd6dd;
+}
+
+#onAirBadge.status-pill.active {
+  background: #153524;
+  border-color: #2f7d45;
+  color: #d8ffe5;
+  box-shadow: 0 0 0 1px rgba(47, 125, 69, 0.35) inset, 0 0 18px rgba(46, 204, 113, 0.22);
+}
+
+#onAirBadge.status-pill.active::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #2ecc71;
+  display: inline-block;
+  box-shadow: 0 0 10px rgba(46, 204, 113, 0.75);
+}
