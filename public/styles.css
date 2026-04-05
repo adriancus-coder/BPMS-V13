@@ -634,16 +634,16 @@ label:has(#monitorAudioBox) {
 }
 
 #onAirBadge.status-pill {
-  background: #2a1114;
-  border-color: #6b2b37;
-  color: #ffd6dd;
+  background: #122443;
+  border-color: #274268;
+  color: #dbeafe;
 }
 
 #onAirBadge.status-pill.active {
-  background: #153524;
-  border-color: #2f7d45;
-  color: #d8ffe5;
-  box-shadow: 0 0 0 1px rgba(47, 125, 69, 0.35) inset, 0 0 18px rgba(46, 204, 113, 0.22);
+  background: #4a1218;
+  border-color: #d63b4a;
+  color: #ffe1e5;
+  box-shadow: 0 0 0 1px rgba(214, 59, 74, 0.35) inset, 0 0 18px rgba(242, 72, 72, 0.28);
 }
 
 #onAirBadge.status-pill.active::before {
@@ -651,7 +651,7 @@ label:has(#monitorAudioBox) {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: #2ecc71;
+  background: #f24848;
   display: inline-block;
-  box-shadow: 0 0 10px rgba(46, 204, 113, 0.75);
+  box-shadow: 0 0 10px rgba(242, 72, 72, 0.8);
 }
