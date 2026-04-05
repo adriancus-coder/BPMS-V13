@@ -403,7 +403,7 @@ async function flushSpeechBuffer(eventId, force = false) {
     if (endsWithWeakPunctuation(text)) {
       buffered.timer = setTimeout(() => {
         flushSpeechBuffer(eventId, true).catch(console.error);
-      }, 2000);
+      }, 2800);
       speechBuffers.set(eventId, buffered);
       return null;
     }
@@ -411,7 +411,7 @@ async function flushSpeechBuffer(eventId, force = false) {
     if (startsLikeContinuation(text) && words < 12) {
       buffered.timer = setTimeout(() => {
         flushSpeechBuffer(eventId, true).catch(console.error);
-      }, 2000);
+      }, 2800);
       speechBuffers.set(eventId, buffered);
       return null;
     }
@@ -419,7 +419,7 @@ async function flushSpeechBuffer(eventId, force = false) {
     if (BUFFER_CONNECTORS.has(last) && words < 12) {
       buffered.timer = setTimeout(() => {
         flushSpeechBuffer(eventId, true).catch(console.error);
-      }, 2000);
+      }, 2800);
       speechBuffers.set(eventId, buffered);
       return null;
     }
@@ -464,14 +464,14 @@ function queueSpeechText(eventId, text) {
     return;
   }
 
-  if (ageMs > 9000 || words >= 20) {
+  if (ageMs > 11000 || words >= 22) {
     flushSpeechBuffer(eventId, true).catch(console.error);
     return;
   }
 
   next.timer = setTimeout(() => {
     flushSpeechBuffer(eventId, true).catch(console.error);
-  }, 2000);
+  }, 2800);
 }
 
 app.get('/api/health', (req, res) => {
