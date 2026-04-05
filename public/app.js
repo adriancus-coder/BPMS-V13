@@ -67,6 +67,16 @@ function initTabs() {
   switchTab('live');
 }
 
+function updateGlossaryMode() {
+  const mode = $('glossaryMode')?.value || 'translation';
+  if ($('translationGlossaryFields')) {
+    $('translationGlossaryFields').style.display = mode === 'translation' ? 'block' : 'none';
+  }
+  if ($('sourceCorrectionFields')) {
+    $('sourceCorrectionFields').style.display = mode === 'source' ? 'block' : 'none';
+  }
+}
+
 function escapeHtml(text) {
   return String(text || '')
     .replaceAll('&', '&amp;')
@@ -903,9 +913,34 @@ $('saveGlossaryBtn').addEventListener('click', async () => {
   if (data.ok) {
     $('glossarySource').value = '';
     $('glossaryTarget').value = '';
-    setStatus('Termen salvat în memorie.');
+    setStatus('Traducerea a fost salvată în glosar.');
   }
 });
+
+$('saveSourceCorrectionBtn').addEventListener('click', async () => {
+  if (!currentEvent) return alert('Alege sau creează întâi un eveniment.');
+
+  const heard = $('sourceWrong').value.trim();
+  const correct = $('sourceCorrect').value.trim();
+  const permanent = $('sourceCorrectionPermanent').checked;
+
+  if (!heard || !correct) return;
+
+  const res = await fetch(`/api/events/${currentEvent.id}/source-corrections`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ heard, correct, permanent })
+  });
+
+  const data = await res.json();
+  if (data.ok) {
+    $('sourceWrong').value = '';
+    $('sourceCorrect').value = '';
+    setStatus('Corecția de recunoaștere a fost salvată.');
+  }
+});
+
+$('glossaryMode')?.addEventListener('change', updateGlossaryMode);
 
 $('muteGlobalBtn').addEventListener('click', () => {
   if (!currentEvent) return;
@@ -1047,6 +1082,7 @@ window.addEventListener('load', async () => {
 
   await loadAudioInputs();
   initTabs();
+  updateGlossaryMode();
   updateInputGain();
   await refreshEventList();
 
