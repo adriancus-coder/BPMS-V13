@@ -92,24 +92,30 @@
         <h3 class="section-title">Audio și control live</h3>
         <label>Sursă audio</label>
         <select id="audioInput"></select>
+
         <div class="small">Semnal intrare</div>
         <progress id="audioLevel" value="0" max="100" style="width:100%"></progress>
+
         <div class="small">Volum intrare</div>
         <input id="inputGainRange" class="range" type="range" min="0" max="200" value="100">
-        <label style="display:flex;gap:8px;align-items:center;margin-top:10px">
-  <input type="checkbox" id="monitorAudioBox">
-  Monitorizează audio în PC
-</label>
-
-<div class="small" style="margin-top:8px">Volum monitor</div>
-<input id="monitorGainRange" class="range" type="range" min="0" max="100" value="0">
-<div id="monitorGainLabel" class="small">0%</div>
         <div id="inputGainLabel" class="status">100%</div>
+
+        <label style="display:flex;gap:8px;align-items:center;margin-top:10px">
+          <input type="checkbox" id="monitorAudioBox">
+          Monitorizează audio în PC
+        </label>
+
+        <div class="small" style="margin-top:8px">Volum monitor</div>
+        <input id="monitorGainRange" class="range" type="range" min="0" max="100" value="0">
+        <div id="monitorGainLabel" class="small">0%</div>
+
         <div class="btn-stack">
           <button id="startRecognitionBtn" class="btn-green big">Start traducere</button>
           <button id="stopRecognitionBtn" class="btn-dark big">Stop</button>
         </div>
+
         <div id="recognitionStatus" class="status">Nepornit</div>
+
         <div class="audio-control-block">
           <div class="small">Audio participanți</div>
           <button id="muteGlobalBtn" class="btn-dark big">Mute global</button>
@@ -129,13 +135,15 @@
         </div>
         <button id="jumpLiveBtn" class="btn-dark">Sari la live</button>
       </div>
-      <div id="transcriptList" class="transcript-list admin-transcript-list"></div>
+
       <div class="panel">
-  <div class="small">Ascult...</div>
-  <div id="partialTranscript" style="min-height:24px;font-size:14px;opacity:.8;">
-    Aștept propoziția completă...
-  </div>
-</div>
+        <div class="small">Ascult...</div>
+        <div id="partialTranscript" style="min-height:24px;font-size:14px;opacity:.8;">
+          Aștept propoziția completă...
+        </div>
+      </div>
+
+      <div id="transcriptList" class="transcript-list admin-transcript-list"></div>
     </div>
 
     <div class="grid grid-2-equal editor-layout">
