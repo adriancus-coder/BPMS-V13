@@ -91,20 +91,7 @@ function saveDb() {
 
 const speechBuffers = new Map();
 
-function summarizeEvent(event) {
-  return {
-    id: event.id,
-    name: event.name,
-    createdAt: event.createdAt || null,
-    scheduledAt: event.scheduledAt || null,
-    sourceLang: event.sourceLang || 'ro',
-    targetLangs: Array.isArray(event.targetLangs) ? event.targetLangs : [],
-    transcriptCount: Array.isArray(event.transcripts) ? event.transcripts.length : 0,
-    isActive: db.activeEventId === event.id,
-    participantLink: event.participantLink || '',
-    qrCodeDataUrl: event.qrCodeDataUrl || ''
-  };
-}
+const speechBuffers = new Map();
 
 const BUFFER_CONNECTORS = new Set([
   'și', 'si', 'să', 'sa', 'că', 'ca', 'dar', 'iar', 'ori', 'sau',
@@ -184,11 +171,11 @@ function shouldFlushBufferedText(text) {
 
   if (endsWithWeakPunctuation(clean)) return false;
 
-  if (endsWithStrongPunctuation(clean) && words >= 5) {
+  if (endsWithStrongPunctuation(clean) && words >= 10) {
     return true;
   }
 
-  if (words >= 18 && !BUFFER_CONNECTORS.has(last) && !endsWithWeakPunctuation(clean)) {
+  if (words >= 12 && !BUFFER_CONNECTORS.has(last) && !endsWithWeakPunctuation(clean)) {
     return true;
   }
 
@@ -220,29 +207,30 @@ async function flushSpeechBuffer(eventId, force = false) {
     if (endsWithWeakPunctuation(text)) {
       buffered.timer = setTimeout(() => {
         flushSpeechBuffer(eventId, true).catch(console.error);
-      }, 2600);
+      }, 2000);
       speechBuffers.set(eventId, buffered);
       return null;
     }
 
-    if (startsLikeContinuation(text) && words < 10) {
+    if (startsLikeContinuation(text) && words < 12) {
       buffered.timer = setTimeout(() => {
         flushSpeechBuffer(eventId, true).catch(console.error);
-      }, 2600);
+      }, 2000);
       speechBuffers.set(eventId, buffered);
       return null;
     }
 
-    if (BUFFER_CONNECTORS.has(last) && words < 14) {
+    if (BUFFER_CONNECTORS.has(last) && words < 12) {
       buffered.timer = setTimeout(() => {
         flushSpeechBuffer(eventId, true).catch(console.error);
-      }, 2600);
+      }, 2000);
       speechBuffers.set(eventId, buffered);
       return null;
     }
   }
 
   speechBuffers.delete(eventId);
+  io.to(`event:${eventId}`).emit('partial_transcript', { text: '' });
   return processText(event, text, { force: true });
 }
 
@@ -263,6 +251,10 @@ function queueSpeechText(eventId, text) {
 
   speechBuffers.set(eventId, next);
 
+  io.to(`event:${eventId}`).emit('partial_transcript', {
+    text: merged
+  });
+
   const ageMs = Date.now() - next.startedAt;
   const words = countWords(merged);
 
@@ -271,14 +263,14 @@ function queueSpeechText(eventId, text) {
     return;
   }
 
-  if (ageMs > 9000 || words >= 24) {
+  if (ageMs > 9000 || words >= 20) {
     flushSpeechBuffer(eventId, true).catch(console.error);
     return;
   }
 
   next.timer = setTimeout(() => {
-    flushSpeechBuffer(eventId, false).catch(console.error);
-  }, 2600);
+    flushSpeechBuffer(eventId, true).catch(console.error);
+  }, 2000);
 }
 function normalizeEvent(event) {
   return {
