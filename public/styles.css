@@ -109,3 +109,34 @@ progress { height: 16px; border-radius: 999px; overflow: hidden; }
 .event-banner { margin-top:8px; font-size:14px; color:#dbeafe; background:#0b1f38; border:1px solid #244365; border-radius:14px; padding:10px 12px; }
 .participant-event-name { font-size:20px; font-weight:800; line-height:1.25; margin-top:8px; }
 .participant-event-meta { margin-top:6px; font-size:13px; color:var(--muted); }
+#partialTranscript {
+  background: #07162d;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: #dbeafe;
+  line-height: 1.45;
+}
+
+#partialTranscript:not(:empty) {
+  min-height: 48px;
+}
+
+label:has(#monitorAudioBox) {
+  background: #09192f;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+#monitorGainLabel {
+  margin-top: 4px;
+}
+
+.event-card.opened .name {
+  color: #dbeafe;
+}
+
+.event-card.active .name {
+  color: #d1fae5;
+}
