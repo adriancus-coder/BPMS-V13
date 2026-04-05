@@ -18,7 +18,7 @@ let audioState = {
   recorder: null,
   running: false,
   busy: false,
-  pendingBlob: null,
+  uploadQueue: [],
   chunks: [],
   chunkTimer: null,
   mimeType: '',
@@ -81,10 +81,6 @@ function renderActiveEventBadge(event) {
 
 function getEntryById(entryId) {
   return (currentEvent?.transcripts || []).find((x) => x.id === entryId) || null;
-}
-
-function sortedEntries() {
-  return [...(currentEvent?.transcripts || [])].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 }
 
 function fillGlossaryLangs(targetLangs = []) {
@@ -366,6 +362,10 @@ async function openEventById(eventId) {
     renderActiveEventBadge(currentEvent);
     closeInlineEditors();
 
+    if ($('partialTranscript')) {
+      $('partialTranscript').textContent = 'Aștept propoziția completă...';
+    }
+
     socket.emit('join_event', {
       eventId: currentEvent.id,
       role: 'admin',
@@ -420,6 +420,10 @@ async function createEvent() {
   $('transcriptList').innerHTML = '';
   fillGlossaryLangs(currentEvent.targetLangs || []);
   closeInlineEditors();
+
+  if ($('partialTranscript')) {
+    $('partialTranscript').textContent = 'Aștept propoziția completă...';
+  }
 
   socket.emit('join_event', {
     eventId: currentEvent.id,
@@ -482,17 +486,19 @@ async function loadAudioInputs(keepValue = true) {
 }
 
 async function destroyAudioPipeline() {
+  audioState.running = false;
+
   if (audioState.chunkTimer) clearTimeout(audioState.chunkTimer);
   audioState.chunkTimer = null;
   audioState.chunks = [];
   audioState.mimeType = '';
 
   if (audioState.recorder && audioState.recorder.state !== 'inactive') {
-    audioState.recorder.stop();
+    try {
+      audioState.recorder.stop();
+    } catch (_) {}
   }
-
   audioState.recorder = null;
-  audioState.running = false;
 
   if (audioState.meterFrame) cancelAnimationFrame(audioState.meterFrame);
   audioState.meterFrame = null;
@@ -513,8 +519,8 @@ async function destroyAudioPipeline() {
   audioState.monitorGainNode = null;
   audioState.monitorEnabled = false;
   audioState.destination = null;
-  audioState.pendingBlob = null;
   audioState.busy = false;
+  audioState.uploadQueue = [];
 
   $('audioLevel').value = 0;
 }
@@ -637,22 +643,31 @@ async function postAudioChunk(blob) {
   }
 }
 
-async function processAudioBlob(blob) {
+function enqueueAudioBlob(blob) {
+  if (!blob || blob.size < 3500) return;
+  audioState.uploadQueue.push(blob);
+
+  if (!audioState.busy) {
+    drainAudioUploadQueue().catch(console.error);
+  }
+}
+
+async function drainAudioUploadQueue() {
+  if (audioState.busy) return;
   audioState.busy = true;
 
   try {
-    await postAudioChunk(blob);
-  } catch (err) {
-    console.error(err);
-    setStatus(err.message || 'Eroare la trimiterea audio.');
+    while (audioState.uploadQueue.length) {
+      const blob = audioState.uploadQueue.shift();
+      try {
+        await postAudioChunk(blob);
+      } catch (err) {
+        console.error(err);
+        setStatus(err.message || 'Eroare la trimiterea audio.');
+      }
+    }
   } finally {
     audioState.busy = false;
-
-    if (audioState.pendingBlob) {
-      const nextBlob = audioState.pendingBlob;
-      audioState.pendingBlob = null;
-      await processAudioBlob(nextBlob);
-    }
   }
 }
 
@@ -693,20 +708,16 @@ async function startTranslation() {
       }
     };
 
-    audioState.recorder.onstop = async () => {
+    audioState.recorder.onstop = () => {
       const blob = new Blob(audioState.chunks, { type: 'audio/webm' });
       audioState.chunks = [];
 
-      if (blob.size >= 3500) {
-        if (audioState.busy) {
-          audioState.pendingBlob = blob;
-        } else {
-          await processAudioBlob(blob);
-        }
-      }
-
       if (audioState.running) {
         startRecorderCycle();
+      }
+
+      if (blob.size >= 3500) {
+        enqueueAudioBlob(blob);
       }
     };
 
@@ -733,6 +744,9 @@ async function stopTranslation() {
 
   if (audioState.recorder && audioState.recorder.state === 'recording') {
     audioState.recorder.stop();
+    setTimeout(() => {
+      destroyAudioPipeline().catch(console.error);
+    }, 50);
     return;
   }
 
@@ -754,6 +768,10 @@ socket.on('joined_event', ({ event }) => {
   renderActiveEventBadge(currentEvent);
   closeInlineEditors();
   refreshEventList();
+
+  if ($('partialTranscript')) {
+    $('partialTranscript').textContent = 'Aștept propoziția completă...';
+  }
 });
 
 socket.on('transcript_entry', (entry) => {
@@ -769,6 +787,7 @@ socket.on('transcript_entry', (entry) => {
 });
 
 socket.on('transcript_updated', updateEntry);
+
 socket.on('transcript_source_updated', (payload) => {
   updateSourceEntry(payload);
   if ($('partialTranscript')) {
@@ -962,6 +981,9 @@ $('eventList').addEventListener('click', async (e) => {
         $('qrImage').src = '';
         $('transcriptList').innerHTML = '';
         renderActiveEventBadge(null);
+        if ($('partialTranscript')) {
+          $('partialTranscript').textContent = 'Aștept propoziția completă...';
+        }
       }
 
       await refreshEventList();
