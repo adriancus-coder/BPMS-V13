@@ -174,26 +174,43 @@
 
     <div id="tab-glossary" class="tab-panel">
       <div class="panel stack-gap">
-        <h3 class="section-title">Glosar</h3>
-        <div class="two-col">
-          <div>
-            <label>Se aplică pentru limba</label>
-            <select id="glossaryLang">
-              <option value="no">Norvegiană</option>
-              <option value="ru">Rusă</option>
-              <option value="uk">Ucraineană</option>
-              <option value="en">Engleză</option>
-              <option value="es">Spaniolă</option>
-            </select>
+        <h3 class="section-title">Glosar și corecții</h3>
+
+        <label>Tip</label>
+        <select id="glossaryMode">
+          <option value="translation" selected>Traducere</option>
+          <option value="source">Corecție recunoaștere</option>
+        </select>
+
+        <div id="translationGlossaryFields" class="stack-gap">
+          <div class="two-col">
+            <div>
+              <label>Se aplică pentru limba</label>
+              <select id="glossaryLang">
+                <option value="no">Norvegiană</option>
+                <option value="ru">Rusă</option>
+                <option value="uk">Ucraineană</option>
+                <option value="en">Engleză</option>
+                <option value="es">Spaniolă</option>
+              </select>
+            </div>
+            <div>
+              <label><input id="glossaryPermanent" type="checkbox" checked> Salvează permanent</label>
+            </div>
           </div>
-          <div>
-            <label><input id="glossaryPermanent" type="checkbox" checked> Salvează permanent</label>
-          </div>
+
+          <input id="glossarySource" type="text" placeholder="cuvânt original sau expresie">
+          <input id="glossaryTarget" type="text" placeholder="formă corectă în limba țintă">
+          <button id="saveGlossaryBtn" class="btn-dark">Salvează traducere</button>
         </div>
 
-        <input id="glossarySource" type="text" placeholder="cuvânt original">
-        <input id="glossaryTarget" type="text" placeholder="formă corectă">
-        <button id="saveGlossaryBtn" class="btn-dark">Salvează în memorie</button>
+        <div id="sourceCorrectionFields" class="stack-gap" style="display:none">
+          <div class="small">Aici salvezi forma auzită greșit și forma corectă în română. Corecția se aplică imediat după transcriere și înainte de traducere.</div>
+          <label><input id="sourceCorrectionPermanent" type="checkbox" checked> Salvează permanent</label>
+          <input id="sourceWrong" type="text" placeholder="forma auzită greșit">
+          <input id="sourceCorrect" type="text" placeholder="forma corectă în română">
+          <button id="saveSourceCorrectionBtn" class="btn-dark">Salvează corecție recunoaștere</button>
+        </div>
       </div>
     </div>
 
