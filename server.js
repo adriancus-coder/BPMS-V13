@@ -540,6 +540,20 @@ app.get('/api/events/:id', (req, res) => {
   res.json({ ok: true, event: normalizeEvent(event), languageNames: LANGUAGE_NAMES_RO });
 });
 
+app.post('/api/events/:id/settings', (req, res) => {
+  const event = db.events[req.params.id];
+  if (!event) {
+    return res.status(404).json({ ok: false, error: 'Eveniment inexistent.' });
+  }
+
+  if (typeof req.body.speed === 'string' && req.body.speed.trim()) {
+    event.speed = req.body.speed.trim();
+  }
+
+  saveDb();
+  res.json({ ok: true, event: normalizeEvent(event) });
+});
+
 app.post('/api/events/:id/activate', (req, res) => {
   const event = db.events[req.params.id];
   if (!event) {
