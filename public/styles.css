@@ -140,3 +140,66 @@ label:has(#monitorAudioBox) {
 .event-card.active .name {
   color: #d1fae5;
 }
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px;
+}
+
+.tab-btn {
+  background: #09192f;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tab-btn.active {
+  background: #153524;
+  border-color: #2f7d45;
+  color: #d8ffe5;
+}
+
+.tab-panel {
+  display: none;
+  gap: 16px;
+}
+
+.tab-panel.active {
+  display: grid;
+}
+
+#partialTranscript {
+  background: #07162d;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: #dbeafe;
+  line-height: 1.45;
+}
+
+#partialTranscript:not(:empty) {
+  min-height: 48px;
+}
+
+label:has(#monitorAudioBox) {
+  background: #09192f;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+#monitorGainLabel {
+  margin-top: 4px;
+}
+
+.event-card.opened .name {
+  color: #dbeafe;
+}
+
+.event-card.active .name {
+  color: #d1fae5;
+}
