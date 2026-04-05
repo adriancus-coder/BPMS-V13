@@ -1,205 +1,231 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BPMS Admin</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container admin-shell admin-v12">
+    <div class="panel hero-panel hero-admin">
+      <div>
+        <div class="eyebrow">BPMS Live Translate</div>
+        <div class="header-logo">Admin</div>
+        <div class="small hero-copy">Controlezi audio, vezi româna live și corectezi direct pe propoziția pe care ai apăsat. Fiecare eveniment are linkul și QR-ul lui.</div>
+      </div>
+      <div class="hero-right">
+        <div class="small">Eveniment live public</div>
+        <div id="activeEventBadge" class="status-pill">Niciun eveniment activ</div>
+        <div id="openedEventBadge" class="small">Niciun eveniment deschis</div>
+      </div>
+    </div>
 
-:root {
-  --bg: #071224;
-  --panel: #0d1b33;
-  --panel-2: #122443;
-  --text: #eef4ff;
-  --muted: #a9b7d1;
-  --green: #2ecc71;
-  --red: #f24848;
-  --blue: #2d9cdb;
-  --border: #274268;
-  --accent: #12331d;
-  --accent-border: #2f7d45;
-}
-* { box-sizing: border-box; }
-body { margin: 0; font-family: Arial, sans-serif; background: linear-gradient(180deg,#071224,#08172c 35%,#071224); color: var(--text); }
-.container { max-width: 1480px; margin: 0 auto; padding: 18px; }
-.admin-shell { display: grid; gap: 16px; }
-.grid { display: grid; gap: 16px; }
-.grid-3 { grid-template-columns: 1fr 1fr 1fr; }
-.grid-2-equal { grid-template-columns: 1.15fr .85fr; }
-.compact-grid { align-items: start; }
-.panel { background: rgba(13,27,51,.96); border: 1px solid var(--border); border-radius: 22px; padding: 18px; box-shadow: 0 8px 30px rgba(0,0,0,.2); }
-.hero-panel { padding: 20px 22px; }
-.hero-admin, .participant-hero { display:flex; justify-content:space-between; align-items:center; gap:16px; }
-.hero-right { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
-.eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: #8ac0ff; margin-bottom: 6px; }
-.header-logo { font-size: 34px; font-weight: 900; letter-spacing: .02em; }
-.hero-copy { max-width: 780px; }
-.section-title { font-size: 18px; font-weight: 800; }
-.stack-gap > * + * { margin-top: 10px; }
-.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.space-between { justify-content: space-between; }
-.two-col { display:grid; gap:12px; grid-template-columns: 1fr 1fr; }
-label { display: block; color: var(--muted); margin-bottom: 6px; font-size: 14px; }
-input[type=text], input[type=password], select, textarea { width: 100%; padding: 14px; border-radius: 16px; border: 1px solid var(--border); background: #07162d; color: var(--text); font-size: 15px; }
-textarea { min-height: 96px; resize: vertical; }
-button { border: 0; border-radius: 16px; padding: 14px 18px; font-size: 15px; font-weight: 700; cursor: pointer; }
-button:hover { filter: brightness(1.03); }
-.btn-green { background: var(--green); color: #04220f; }
-.btn-red { background: var(--red); color: white; }
-.btn-dark { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
-.btn-blue { background: var(--blue); color: #061624; }
-.big { width: 100%; padding: 16px 18px; }
-.btn-stack { display:grid; gap:10px; }
-.small { font-size: 13px; color: var(--muted); line-height: 1.4; }
-.codes { font-size: 22px; font-weight: 800; line-height: 1.15; word-break: break-word; }
-.qr { width: 100%; max-width: 240px; background: white; border-radius: 16px; display: block; padding: 8px; }
-.checkbox-list { display: flex; flex-wrap: wrap; gap: 10px 14px; }
-.compact-checks label { background:#09192f; border:1px solid var(--border); border-radius:999px; padding:10px 12px; }
-.checkbox-list label { display: inline-flex; align-items: center; gap: 8px; margin: 0; color: var(--text); }
-.transcript-list { display: flex; flex-direction: column; gap: 12px; max-height: 62vh; overflow: auto; }
-.admin-transcript-list { max-height: 58vh; }
-.entry { border: 1px solid var(--border); background: #0a1730; border-radius: 18px; padding: 12px 14px; }
-.entry.active { border-color: var(--accent-border); box-shadow: 0 0 0 1px var(--accent-border) inset; background:#0e213a; }
-.entry .orig { font-size: 15px; margin-bottom: 4px; line-height: 1.45; }
-.entry .trans { font-size: 13px; color: #c8f4d2; margin-top: 5px; line-height: 1.4; }
-.badge-inline { background: #163025; border: 1px solid #2b6a49; padding: 4px 8px; border-radius: 999px; }
-.status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border); background: #07162d; color: var(--muted); font-size: 13px; font-weight: 700; }
-.status-pill.active { background: #153524; border-color: #2f7d45; color: #d8ffe5; }
-.last-highlight { background: var(--accent); border: 1px solid var(--accent-border); padding: 14px; border-radius: 16px; font-size: 16px; font-weight: 700; }
-.compact-last { font-size: 15px; line-height: 1.5; }
-.history { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-.compact-history .history-item { font-size: 14px; }
-.history-item { opacity: .92; border-top: 1px solid var(--border); padding-top: 8px; line-height: 1.45; }
-.status { font-size: 14px; color: var(--muted); line-height:1.45; }
-.range { width: 100%; }
-progress { height: 16px; border-radius: 999px; overflow: hidden; }
-.link-row { display:flex; gap:8px; align-items:center; }
-.link-row input { flex:1; }
-.link-row button { white-space:nowrap; font-size:14px; padding:12px 14px; }
-.source-editor-panel textarea { min-height: 170px; font-size: 15px; line-height: 1.5; }
-.source-preview { background: #07162d; border: 1px solid var(--border); border-radius: 16px; padding: 12px; min-height: 72px; font-size: 14px; line-height: 1.45; }
-.sticky-panel { position: sticky; top: 14px; align-self:start; }
-.soft-divider { border:0; border-top:1px solid var(--border); margin:10px 0; }
-.audio-control-block { border-top:1px solid var(--border); padding-top:10px; }
-.participant-wrap { max-width: 920px; display:grid; gap:16px; }
-.participant-last-panel { min-height: 280px; }
-@media (max-width: 1200px) { .grid-3 { grid-template-columns: 1fr; } .grid-2-equal { grid-template-columns: 1fr; } .sticky-panel { position: static; } }
-@media (max-width: 720px) { .link-row, .two-col { grid-template-columns:1fr; flex-direction:column; } .link-row button { width:100%; } .hero-admin, .participant-hero { flex-direction:column; align-items:flex-start; } .header-logo { font-size: 30px; } }
+    <div class="panel tab-bar">
+      <button class="tab-btn active" data-tab="live" type="button">Live</button>
+      <button class="tab-btn" data-tab="events" type="button">Evenimente</button>
+      <button class="tab-btn" data-tab="glossary" type="button">Glosar</button>
+      <button class="tab-btn" data-tab="manual" type="button">Text manual</button>
+    </div>
 
+    <div id="tab-live" class="tab-panel active">
+      <div class="grid grid-2-equal">
+        <div class="panel stack-gap">
+          <h3 class="section-title">Audio și control live</h3>
+          <label>Sursă audio</label>
+          <select id="audioInput"></select>
 
-.event-list { display:grid; gap:10px; }
-.event-card { border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:12px; background:rgba(255,255,255,.03); }
-.event-card.active { border-color:#4ade80; box-shadow:0 0 0 1px rgba(74,222,128,.25) inset; }
-.event-card .name { font-weight:600; font-size:15px; }
-.event-card .meta { font-size:12px; opacity:.75; margin-top:6px; }
-.event-card .actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
-.source-preview { font-size:15px !important; }
-.orig, .trans, .entry { font-size:14px; }
-.trans { line-height:1.45; }
+          <div class="small">Semnal intrare</div>
+          <progress id="audioLevel" value="0" max="100" style="width:100%"></progress>
 
+          <div class="small">Volum intrare</div>
+          <input id="inputGainRange" class="range" type="range" min="0" max="200" value="100">
+          <div id="inputGainLabel" class="status">100%</div>
 
-.admin-v12 .transcript-panel { margin-top: 0; }
-.admin-v12 .entry { position: relative; }
-.admin-v12 .entry.active { border-color:#7dd3fc; box-shadow:0 0 0 1px rgba(125,211,252,.35) inset; }
-.inline-editor { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display:none; }
-.inline-editor.open { display:block; }
-.inline-editor textarea { min-height: 88px; font-size: 14px; line-height: 1.45; }
-.entry .orig, .entry .trans { font-size: 13px; }
-.entry .trans + .trans { margin-top: 6px; }
-.entry-meta { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-.inline-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
-.link-row { align-items:stretch; }
-.event-card .badge { display:inline-block; margin-top:8px; font-size:12px; color:#d1fae5; background:#11442a; border:1px solid #1f6b3d; padding:4px 8px; border-radius:999px; }
+          <label style="display:flex;gap:8px;align-items:center;margin-top:10px">
+            <input type="checkbox" id="monitorAudioBox">
+            Monitorizează audio în PC
+          </label>
 
-.event-card.opened { border-color:#7dd3fc; box-shadow:0 0 0 1px rgba(125,211,252,.28) inset; }
-.event-card .actions button[data-action="delete"] { background:#30161a; border:1px solid #6b2b37; color:#ffd6dd; }
-.event-banner { margin-top:8px; font-size:14px; color:#dbeafe; background:#0b1f38; border:1px solid #244365; border-radius:14px; padding:10px 12px; }
-.participant-event-name { font-size:20px; font-weight:800; line-height:1.25; margin-top:8px; }
-.participant-event-meta { margin-top:6px; font-size:13px; color:var(--muted); }
-#partialTranscript {
-  background: #07162d;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px 14px;
-  color: #dbeafe;
-  line-height: 1.45;
-}
+          <div class="small" style="margin-top:8px">Volum monitor</div>
+          <input id="monitorGainRange" class="range" type="range" min="0" max="100" value="0">
+          <div id="monitorGainLabel" class="small">0%</div>
 
-#partialTranscript:not(:empty) {
-  min-height: 48px;
-}
+          <div class="btn-stack">
+            <button id="startRecognitionBtn" class="btn-green big">Start traducere</button>
+            <button id="stopRecognitionBtn" class="btn-dark big">Stop</button>
+          </div>
 
-label:has(#monitorAudioBox) {
-  background: #09192f;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 10px 12px;
-}
+          <div id="recognitionStatus" class="status">Nepornit</div>
 
-#monitorGainLabel {
-  margin-top: 4px;
-}
+          <div class="audio-control-block">
+            <div class="small">Audio participanți</div>
+            <button id="muteGlobalBtn" class="btn-dark big">Mute global</button>
+            <button id="panicBtn" class="btn-red big">Stop audio</button>
+            <div class="small">Volum general</div>
+            <input id="volumeRange" class="range" type="range" min="0" max="100" value="70">
+            <div id="audioStateLabel" class="status">Participanții își pot opri local audio pe telefon.</div>
+          </div>
+        </div>
 
-.event-card.opened .name {
-  color: #dbeafe;
-}
+        <div class="panel stack-gap transcript-panel">
+          <div class="row space-between">
+            <div>
+              <h3 class="section-title" style="margin:0">Transcriere și traduceri live</h3>
+              <div class="small" style="margin-top:6px">Apasă pe o propoziție ca să deschizi editarea direct în cardul ei.</div>
+            </div>
+            <button id="jumpLiveBtn" class="btn-dark">Sari la live</button>
+          </div>
 
-.event-card.active .name {
-  color: #d1fae5;
-}
-.tab-bar {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 10px;
-}
+          <div class="panel">
+            <div class="small">Ascult...</div>
+            <div id="partialTranscript" style="min-height:24px;font-size:14px;opacity:.8;">
+              Aștept propoziția completă...
+            </div>
+          </div>
 
-.tab-btn {
-  background: #09192f;
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 700;
-}
+          <div id="transcriptList" class="transcript-list admin-transcript-list"></div>
+        </div>
+      </div>
+    </div>
 
-.tab-btn.active {
-  background: #153524;
-  border-color: #2f7d45;
-  color: #d8ffe5;
-}
+    <div id="tab-events" class="tab-panel">
+      <div class="grid grid-2-equal">
+        <div class="panel stack-gap">
+          <h3 class="section-title">Eveniment nou</h3>
+          <label>Nume eveniment</label>
+          <input id="eventName" type="text" placeholder="Serviciu duminică 11:00">
 
-.tab-panel {
-  display: none;
-  gap: 16px;
-}
+          <div class="two-col">
+            <div>
+              <label>Data</label>
+              <input id="eventDate" type="date">
+            </div>
+            <div>
+              <label>Ora</label>
+              <input id="eventTime" type="time">
+            </div>
+          </div>
 
-.tab-panel.active {
-  display: grid;
-}
+          <div class="two-col">
+            <div>
+              <label>Limba de intrare</label>
+              <select id="sourceLang">
+                <option value="ro" selected>Română</option>
+              </select>
+            </div>
+            <div>
+              <label>Viteză traducere</label>
+              <select id="speed">
+                <option value="rapid">Rapid</option>
+                <option value="balanced" selected>Echilibrat</option>
+                <option value="clear">Clar</option>
+              </select>
+            </div>
+          </div>
 
-#partialTranscript {
-  background: #07162d;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px 14px;
-  color: #dbeafe;
-  line-height: 1.45;
-}
+          <label>Limbi pentru participanți</label>
+          <div class="checkbox-list compact-checks">
+            <label><input type="checkbox" value="no" checked> Norvegiană</label>
+            <label><input type="checkbox" value="ru"> Rusă</label>
+            <label><input type="checkbox" value="uk"> Ucraineană</label>
+            <label><input type="checkbox" value="en" checked> Engleză</label>
+            <label><input type="checkbox" value="es"> Spaniolă</label>
+          </div>
 
-#partialTranscript:not(:empty) {
-  min-height: 48px;
-}
+          <button id="createEventBtn" class="btn-green big">Creează eveniment</button>
+        </div>
 
-label:has(#monitorAudioBox) {
-  background: #09192f;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 10px 12px;
-}
+        <div class="panel stack-gap">
+          <h3 class="section-title">Participant</h3>
+          <div class="small">Fiecare eveniment are linkul și QR-ul lui. Când alegi alt eveniment din listă, se schimbă și codul lui.</div>
+          <div class="small">Cod Admin</div>
+          <div id="adminCode" class="codes">-</div>
 
-#monitorGainLabel {
-  margin-top: 4px;
-}
+          <label>Link participant</label>
+          <div class="link-row">
+            <input id="participantLink" type="text" readonly>
+            <button id="copyParticipantBtn" class="btn-dark">Copy</button>
+            <button id="shareParticipantBtn" class="btn-blue">WhatsApp</button>
+          </div>
 
-.event-card.opened .name {
-  color: #dbeafe;
-}
+          <div class="row">
+            <button id="setActiveEventBtn" class="btn-dark">Pune live</button>
+          </div>
 
-.event-card.active .name {
-  color: #d1fae5;
-}
+          <img id="qrImage" class="qr" alt="QR code">
+
+          <div class="link-row">
+            <button id="copyQrBtn" class="btn-dark">Copiază QR</button>
+            <button id="downloadQrBtn" class="btn-blue">Descarcă QR</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel stack-gap">
+        <div class="row space-between">
+          <h3 class="section-title" style="margin:0">Evenimente</h3>
+          <button id="refreshEventsBtn" class="btn-dark">Refresh</button>
+        </div>
+        <div class="small">Poți programa evenimente cu dată și oră, le poți redeschide, le poți pune live și le poți șterge când nu mai ai nevoie de ele.</div>
+        <div id="eventList" class="event-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-glossary" class="tab-panel">
+      <div class="panel stack-gap">
+        <h3 class="section-title">Glosar și corecții</h3>
+
+        <label>Tip</label>
+        <select id="glossaryMode">
+          <option value="translation" selected>Traducere</option>
+          <option value="source">Corecție recunoaștere</option>
+        </select>
+
+        <div id="translationGlossaryFields" class="stack-gap">
+          <div class="two-col">
+            <div>
+              <label>Se aplică pentru limba</label>
+              <select id="glossaryLang">
+                <option value="no">Norvegiană</option>
+                <option value="ru">Rusă</option>
+                <option value="uk">Ucraineană</option>
+                <option value="en">Engleză</option>
+                <option value="es">Spaniolă</option>
+              </select>
+            </div>
+            <div>
+              <label><input id="glossaryPermanent" type="checkbox" checked> Salvează permanent</label>
+            </div>
+          </div>
+
+          <input id="glossarySource" type="text" placeholder="cuvânt original sau expresie">
+          <input id="glossaryTarget" type="text" placeholder="formă corectă în limba țintă">
+          <button id="saveGlossaryBtn" class="btn-dark">Salvează traducere</button>
+        </div>
+
+        <div id="sourceCorrectionFields" class="stack-gap" style="display:none">
+          <div class="small">Aici salvezi forma auzită greșit și forma corectă în română. Corecția se aplică imediat după transcriere și înainte de traducere.</div>
+          <label><input id="sourceCorrectionPermanent" type="checkbox" checked> Salvează permanent</label>
+          <input id="sourceWrong" type="text" placeholder="forma auzită greșit">
+          <input id="sourceCorrect" type="text" placeholder="forma corectă în română">
+          <button id="saveSourceCorrectionBtn" class="btn-dark">Salvează corecție recunoaștere</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-manual" class="tab-panel">
+      <div class="panel stack-gap">
+        <h3 class="section-title">Text manual</h3>
+        <label>Trimite direct o propoziție</label>
+        <textarea id="manualText" placeholder="Scrie textul aici"></textarea>
+        <div class="small">Apasă Enter de două ori rapid ca să trimiți direct textul la traducere.</div>
+        <button id="sendManualBtn" class="btn-blue">Trimite text</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
