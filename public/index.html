@@ -31,7 +31,18 @@
     <div id="tab-live" class="tab-panel active">
       <div class="grid grid-2-equal">
         <div class="panel stack-gap">
-          <h3 class="section-title">Audio și control live</h3>
+          <div class="row space-between">
+            <h3 class="section-title" style="margin:0">Audio și control live</h3>
+            <div id="onAirBadge" class="status-pill">Off-Air</div>
+          </div>
+
+          <label>Mod traducere</label>
+          <select id="speed">
+            <option value="rapid">Rapid</option>
+            <option value="balanced" selected>Echilibrat</option>
+            <option value="clear">Clar</option>
+          </select>
+
           <label>Sursă audio</label>
           <select id="audioInput"></select>
 
@@ -114,14 +125,7 @@
                 <option value="ro" selected>Română</option>
               </select>
             </div>
-            <div>
-              <label>Viteză traducere</label>
-              <select id="speed">
-                <option value="rapid">Rapid</option>
-                <option value="balanced" selected>Echilibrat</option>
-                <option value="clear">Clar</option>
-              </select>
-            </div>
+            <div></div>
           </div>
 
           <label>Limbi pentru participanți</label>
