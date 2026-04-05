@@ -465,7 +465,20 @@ function updateInputGain() {
   $('inputGainLabel').textContent = `${value}%`;
   if (audioState.gainNode) audioState.gainNode.gain.value = value / 100;
 }
+function updateMonitorGain() {
+  const enabled = !!$('monitorAudioBox')?.checked;
+  const value = Number($('monitorGainRange')?.value || 0);
 
+  if ($('monitorGainLabel')) {
+    $('monitorGainLabel').textContent = `${value}%`;
+  }
+
+  audioState.monitorEnabled = enabled;
+
+  if (audioState.monitorGainNode) {
+    audioState.monitorGainNode.gain.value = enabled ? (value / 100) : 0;
+  }
+}
 function startMeterLoop() {
   if (!audioState.analyser) return;
   const data = new Uint8Array(audioState.analyser.fftSize);
@@ -633,7 +646,23 @@ socket.on('audio_state', ({ audioMuted, audioVolume }) => {
   $('volumeRange').value = String(audioVolume);
   $('audioStateLabel').textContent = audioMuted ? 'Audio global oprit.' : 'Audio global activ.';
 });
+socket.on('partial_transcript', ({ text }) => {
+  if ($('partialTranscript')) {
+    $('partialTranscript').textContent = text || 'Aștept propoziția completă...';
+  }
+});
 
+socket.on('transcript_entry', () => {
+  if ($('partialTranscript')) {
+    $('partialTranscript').textContent = 'Aștept propoziția completă...';
+  }
+});
+
+socket.on('transcript_source_updated', () => {
+  if ($('partialTranscript')) {
+    $('partialTranscript').textContent = 'Aștept propoziția completă...';
+  }
+});
 socket.on('server_error', ({ message }) => {
   setStatus(message || 'Eroare server.');
 });
@@ -718,6 +747,8 @@ $('volumeRange').addEventListener('input', () => {
 });
 
 $('inputGainRange').addEventListener('input', updateInputGain);
+$('monitorAudioBox')?.addEventListener('change', updateMonitorGain);
+$('monitorGainRange')?.addEventListener('input', updateMonitorGain);
 $('audioInput').addEventListener('change', async () => {
   if (audioState.running) await startTranslation();
   else {
@@ -807,4 +838,5 @@ window.addEventListener('load', async () => {
       await openEventById(data.event.id);
     }
   } catch (_) {}
+  updateMonitorGain();
 });
