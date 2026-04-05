@@ -184,13 +184,8 @@ function shouldFlushBufferedText(text) {
   const words = countWords(clean);
   const last = getLastWord(clean);
 
-  if (words >= 15 && !BUFFER_CONNECTORS.has(last)) {
-    return true;
-  }
-
-  if (words >= 20) {
-    return true;
-  }
+  if (words >= 15 && !BUFFER_CONNECTORS.has(last)) return true;
+  if (words >= 20) return true;
 
   return false;
 }
@@ -372,7 +367,6 @@ function shouldAppendToPreviousEntry(previousEntry, newText) {
   const ageMs = Math.abs(Date.now() - new Date(previousEntry.createdAt || Date.now()).getTime());
 
   if (ageMs > 20000) return false;
-
   if (startsLikeContinuation(clean)) return true;
   if (BUFFER_CONNECTORS.has(previousLast)) return true;
   if (words <= 5) return true;
@@ -470,7 +464,7 @@ async function flushSpeechBuffer(eventId, force = false) {
   }
 
   speechBuffers.delete(eventId);
-  io.to(`event:${eventId}`).emit('partial_transcript', { text: '' });
+  io.to(`event:${eventId}:admins`).emit('partial_transcript', { text: '' });
   return processText(event, text, { force: true });
 }
 
@@ -496,7 +490,7 @@ function queueSpeechText(eventId, text) {
 
   speechBuffers.set(eventId, next);
 
-  io.to(`event:${eventId}`).emit('partial_transcript', {
+  io.to(`event:${eventId}:admins`).emit('partial_transcript', {
     text: merged
   });
 
@@ -769,7 +763,12 @@ io.on('connection', (socket) => {
     socket.data.eventId = eventId;
     socket.data.role = role || 'participant';
     socket.data.language = language || event.targetLangs[0] || 'no';
+
     socket.join(`event:${eventId}`);
+
+    if (socket.data.role === 'admin') {
+      socket.join(`event:${eventId}:admins`);
+    }
 
     if (socket.data.role === 'participant') {
       socket.join(`event:${eventId}:lang:${socket.data.language}`);
@@ -823,6 +822,8 @@ io.on('connection', (socket) => {
     entry.original = cleanSource;
     entry.edited = true;
 
+    io.to(`event:${eventId}`).emit('entry_refreshing', { entryId });
+
     try {
       await retranslateEntry(event, entry);
       saveDb();
@@ -835,6 +836,7 @@ io.on('connection', (socket) => {
       });
     } catch (err) {
       console.error('admin_update_source error:', err);
+      io.to(`event:${eventId}`).emit('entry_refresh_failed', { entryId });
     }
   });
 
