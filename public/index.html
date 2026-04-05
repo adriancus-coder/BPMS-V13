@@ -96,6 +96,14 @@
         <progress id="audioLevel" value="0" max="100" style="width:100%"></progress>
         <div class="small">Volum intrare</div>
         <input id="inputGainRange" class="range" type="range" min="0" max="200" value="100">
+        <label style="display:flex;gap:8px;align-items:center;margin-top:10px">
+  <input type="checkbox" id="monitorAudioBox">
+  Monitorizează audio în PC
+</label>
+
+<div class="small" style="margin-top:8px">Volum monitor</div>
+<input id="monitorGainRange" class="range" type="range" min="0" max="100" value="0">
+<div id="monitorGainLabel" class="small">0%</div>
         <div id="inputGainLabel" class="status">100%</div>
         <div class="btn-stack">
           <button id="startRecognitionBtn" class="btn-green big">Start traducere</button>
