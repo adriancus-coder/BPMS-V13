@@ -23,6 +23,7 @@
 
     <div class="panel tab-bar">
       <button class="tab-btn active" data-tab="live" type="button">Live</button>
+      <button class="tab-btn" data-tab="transcript" type="button">Transcriere</button>
       <button class="tab-btn" data-tab="events" type="button">Evenimente</button>
       <button class="tab-btn" data-tab="glossary" type="button">Glosar</button>
       <button class="tab-btn" data-tab="manual" type="button">Text manual</button>
@@ -53,7 +54,7 @@
           <input id="inputGainRange" class="range" type="range" min="0" max="200" value="100">
           <div id="inputGainLabel" class="status">100%</div>
 
-          <label style="display:flex;gap:8px;align-items:center;margin-top:10px">
+          <label class="monitor-label">
             <input type="checkbox" id="monitorAudioBox">
             Monitorizează audio în PC
           </label>
@@ -79,14 +80,9 @@
           </div>
         </div>
 
-        <div class="panel stack-gap transcript-panel">
-          <div class="row space-between">
-            <div>
-              <h3 class="section-title" style="margin:0">Transcriere și traduceri live</h3>
-              <div class="small" style="margin-top:6px">Apasă pe o propoziție ca să deschizi editarea direct în cardul ei.</div>
-            </div>
-            <button id="jumpLiveBtn" class="btn-dark">Sari la live</button>
-          </div>
+        <div class="panel stack-gap">
+          <h3 class="section-title" style="margin:0">Ascultare live</h3>
+          <div class="small">Aici vezi textul încă nepublicat. Intră în tabul Transcriere pentru lista completă și editare.</div>
 
           <div class="panel">
             <div class="small">Ascult...</div>
@@ -95,8 +91,22 @@
             </div>
           </div>
 
-          <div id="transcriptList" class="transcript-list admin-transcript-list"></div>
+          <button id="openTranscriptTabBtn" class="btn-dark">Deschide Transcriere</button>
         </div>
+      </div>
+    </div>
+
+    <div id="tab-transcript" class="tab-panel">
+      <div class="panel stack-gap transcript-panel">
+        <div class="row space-between">
+          <div>
+            <h3 class="section-title" style="margin:0">Transcriere și traduceri live</h3>
+            <div class="small" style="margin-top:6px">Apasă pe o propoziție ca să deschizi editarea direct în cardul ei.</div>
+          </div>
+          <button id="jumpLiveBtn" class="btn-dark">Sari la live</button>
+        </div>
+
+        <div id="transcriptList" class="transcript-list admin-transcript-list"></div>
       </div>
     </div>
 
