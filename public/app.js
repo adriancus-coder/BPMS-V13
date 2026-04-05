@@ -45,6 +45,13 @@ function setStatus(text) {
   $('recognitionStatus').textContent = text;
 }
 
+function setOnAirState(isOn) {
+  const badge = $('onAirBadge');
+  if (!badge) return;
+  badge.textContent = isOn ? 'On-Air' : 'Off-Air';
+  badge.className = isOn ? 'status-pill active' : 'status-pill';
+}
+
 function switchTab(tabName) {
   activeTab = tabName;
 
@@ -375,6 +382,27 @@ async function refreshEventList() {
   }
 }
 
+async function syncSpeedToEvent() {
+  if (!currentEvent) return;
+  const speed = $('speed')?.value || 'balanced';
+
+  try {
+    const res = await fetch(`/api/events/${currentEvent.id}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ speed })
+    });
+
+    const data = await res.json();
+    if (!data.ok) return;
+
+    currentEvent = data.event;
+    setStatus(`Mod traducere: ${speed}`);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 async function openEventById(eventId) {
   if (!eventId) return;
 
@@ -387,6 +415,7 @@ async function openEventById(eventId) {
     $('adminCode').textContent = currentEvent.adminCode;
     $('participantLink').value = currentEvent.participantLink;
     $('qrImage').src = currentEvent.qrCodeDataUrl;
+    $('speed').value = currentEvent.speed || 'balanced';
     currentVolume = currentEvent.audioVolume;
     currentMuted = currentEvent.audioMuted;
     $('volumeRange').value = String(currentVolume);
@@ -417,7 +446,6 @@ async function openEventById(eventId) {
 
 async function createEvent() {
   const name = $('eventName').value.trim() || 'Eveniment nou';
-  const speed = $('speed').value;
   const sourceLang = $('sourceLang').value;
   const targetLangs = selectedLangs();
   const scheduledAt = buildScheduledAt();
@@ -435,7 +463,7 @@ async function createEvent() {
   const res = await fetch('/api/events', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, speed, sourceLang, targetLangs, scheduledAt })
+    body: JSON.stringify({ name, speed: $('speed').value || 'balanced', sourceLang, targetLangs, scheduledAt })
   });
 
   const data = await res.json();
@@ -448,6 +476,7 @@ async function createEvent() {
   $('adminCode').textContent = currentEvent.adminCode;
   $('participantLink').value = currentEvent.participantLink;
   $('qrImage').src = currentEvent.qrCodeDataUrl;
+  $('speed').value = currentEvent.speed || 'balanced';
   renderActiveEventBadge(currentEvent);
   currentVolume = currentEvent.audioVolume;
   currentMuted = currentEvent.audioMuted;
@@ -559,6 +588,7 @@ async function destroyAudioPipeline() {
   audioState.uploadQueue = [];
 
   $('audioLevel').value = 0;
+  setOnAirState(false);
 }
 
 function updateInputGain() {
@@ -713,6 +743,8 @@ async function startTranslation() {
     return;
   }
 
+  await syncSpeedToEvent();
+
   if (!window.MediaRecorder) {
     alert('Browserul nu suportă MediaRecorder. Folosește Chrome sau Edge pe Surface.');
     return;
@@ -729,6 +761,7 @@ async function startTranslation() {
   audioState.running = true;
   audioState.mimeType = mimeType;
   switchTab('live');
+  setOnAirState(true);
 
   const startRecorderCycle = () => {
     if (!audioState.running) return;
@@ -768,7 +801,7 @@ async function startTranslation() {
   };
 
   startRecorderCycle();
-  setStatus('Traduce din sursa selectată.');
+  setStatus('On-Air. Traduce din sursa selectată.');
 }
 
 async function stopTranslation() {
@@ -778,6 +811,8 @@ async function stopTranslation() {
     clearTimeout(audioState.chunkTimer);
     audioState.chunkTimer = null;
   }
+
+  setOnAirState(false);
 
   if (audioState.recorder && audioState.recorder.state === 'recording') {
     audioState.recorder.stop();
@@ -804,6 +839,7 @@ function sendManualText() {
 
 socket.on('joined_event', ({ event }) => {
   currentEvent = event;
+  $('speed').value = event.speed || 'balanced';
   currentVolume = event.audioVolume;
   currentMuted = event.audioMuted;
 
@@ -879,6 +915,7 @@ socket.on('active_event_changed', async ({ eventId }) => {
 
 $('createEventBtn').addEventListener('click', createEvent);
 $('sendManualBtn').addEventListener('click', sendManualText);
+$('speed').addEventListener('change', syncSpeedToEvent);
 
 $('manualText').addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || e.shiftKey) return;
@@ -1084,6 +1121,8 @@ window.addEventListener('load', async () => {
   initTabs();
   updateGlossaryMode();
   updateInputGain();
+  updateMonitorGain();
+  setOnAirState(false);
   await refreshEventList();
 
   try {
@@ -1093,6 +1132,4 @@ window.addEventListener('load', async () => {
       await openEventById(data.event.id);
     }
   } catch (_) {}
-
-  updateMonitorGain();
 });
