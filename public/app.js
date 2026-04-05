@@ -6,6 +6,8 @@ let currentVolume = 70;
 let currentMuted = false;
 let selectedEntryId = null;
 let sourceEditLock = false;
+let activeTab = 'live';
+let lastManualEnterAt = 0;
 
 let audioState = {
   stream: null,
@@ -41,6 +43,28 @@ function selectedLangs() {
 
 function setStatus(text) {
   $('recognitionStatus').textContent = text;
+}
+
+function switchTab(tabName) {
+  activeTab = tabName;
+
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+
+  document.querySelectorAll('.tab-panel').forEach((panel) => {
+    panel.classList.toggle('active', panel.id === `tab-${tabName}`);
+  });
+}
+
+function initTabs() {
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      switchTab(btn.dataset.tab);
+    });
+  });
+
+  switchTab('live');
 }
 
 function escapeHtml(text) {
@@ -374,6 +398,7 @@ async function openEventById(eventId) {
 
     await refreshEventList();
     setStatus(`Ai deschis evenimentul: ${currentEvent.name || 'Eveniment'}.`);
+    switchTab('live');
     document.querySelector('.transcript-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
     console.error(err);
@@ -433,6 +458,7 @@ async function createEvent() {
 
   await refreshEventList();
   setStatus('Eveniment creat. Poți testa audio și porni traducerea.');
+  switchTab('live');
 }
 
 async function setActiveEvent() {
@@ -692,6 +718,7 @@ async function startTranslation() {
 
   audioState.running = true;
   audioState.mimeType = mimeType;
+  switchTab('live');
 
   const startRecorderCycle = () => {
     if (!audioState.running) return;
@@ -752,6 +779,17 @@ async function stopTranslation() {
 
   await destroyAudioPipeline();
   setStatus('Oprit.');
+}
+
+function sendManualText() {
+  if (!currentEvent) return alert('Alege sau creează întâi un eveniment.');
+
+  const text = $('manualText').value.trim();
+  if (!text) return;
+
+  socket.emit('submit_text', { eventId: currentEvent.id, text });
+  $('manualText').value = '';
+  lastManualEnterAt = 0;
 }
 
 socket.on('joined_event', ({ event }) => {
@@ -830,15 +868,20 @@ socket.on('active_event_changed', async ({ eventId }) => {
 });
 
 $('createEventBtn').addEventListener('click', createEvent);
+$('sendManualBtn').addEventListener('click', sendManualText);
 
-$('sendManualBtn').addEventListener('click', () => {
-  if (!currentEvent) return alert('Alege sau creează întâi un eveniment.');
+$('manualText').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || e.shiftKey) return;
 
-  const text = $('manualText').value.trim();
-  if (!text) return;
+  const now = Date.now();
 
-  socket.emit('submit_text', { eventId: currentEvent.id, text });
-  $('manualText').value = '';
+  if (now - lastManualEnterAt < 600) {
+    e.preventDefault();
+    sendManualText();
+    return;
+  }
+
+  lastManualEnterAt = now;
 });
 
 $('saveGlossaryBtn').addEventListener('click', async () => {
@@ -933,6 +976,7 @@ $('refreshEventsBtn').addEventListener('click', refreshEventList);
 $('jumpLiveBtn').addEventListener('click', () => {
   sourceEditLock = false;
   closeInlineEditors();
+  switchTab('live');
   const first = document.querySelector('#transcriptList .entry');
   if (first) {
     first.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1002,6 +1046,7 @@ window.addEventListener('load', async () => {
   } catch (_) {}
 
   await loadAudioInputs();
+  initTabs();
   updateInputGain();
   await refreshEventList();
 
