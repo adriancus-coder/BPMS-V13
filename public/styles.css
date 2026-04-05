@@ -655,3 +655,91 @@ label:has(#monitorAudioBox) {
   display: inline-block;
   box-shadow: 0 0 10px rgba(242, 72, 72, 0.8);
 }
+.transcript-source-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.entry-copy-btn {
+  white-space: nowrap;
+  padding: 8px 12px;
+  font-size: 12px;
+  border-radius: 12px;
+  background: #122443;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.entry .orig {
+  font-size: 16px;
+  line-height: 1.55;
+  color: #eef4ff;
+  flex: 1;
+  min-width: 240px;
+}
+
+.entry .trans {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #c8f4d2;
+}
+
+.monitor-label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  background: #09192f;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+#openTranscriptTabBtn {
+  width: 100%;
+}
+
+#onAirBadge {
+  min-width: 92px;
+  justify-content: center;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  transition: all 0.18s ease;
+}
+
+#onAirBadge.status-pill {
+  background: #122443;
+  border-color: #274268;
+  color: #dbeafe;
+}
+
+#onAirBadge.status-pill.active {
+  background: #4a1218;
+  border-color: #d63b4a;
+  color: #ffe1e5;
+  box-shadow: 0 0 0 1px rgba(214, 59, 74, 0.35) inset, 0 0 18px rgba(242, 72, 72, 0.28);
+}
+
+#onAirBadge.status-pill.active::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #f24848;
+  display: inline-block;
+  box-shadow: 0 0 10px rgba(242, 72, 72, 0.8);
+}
+
+@media (max-width: 720px) {
+  .transcript-source-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .entry-copy-btn {
+    width: 100%;
+  }
+}
