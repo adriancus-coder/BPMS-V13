@@ -355,10 +355,55 @@ async function transcribeAudioFile(filePath, event) {
   return String(result?.text || '').trim();
 }
 
+async function retranslateEntry(event, entry) {
+  const translationPairs = await Promise.all(
+    event.targetLangs.map(async (lang) => [lang, await translateText(entry.original, lang, event)])
+  );
+  entry.translations = Object.fromEntries(translationPairs);
+}
+
+function shouldAppendToPreviousEntry(previousEntry, newText) {
+  const clean = sanitizeTranscriptText(newText);
+  if (!previousEntry || !clean) return false;
+
+  const words = countWords(clean);
+  const previousText = sanitizeTranscriptText(previousEntry.original || '');
+  const previousLast = getLastWord(previousText);
+  const ageMs = Math.abs(Date.now() - new Date(previousEntry.createdAt || Date.now()).getTime());
+
+  if (ageMs > 20000) return false;
+
+  if (startsLikeContinuation(clean)) return true;
+  if (BUFFER_CONNECTORS.has(previousLast)) return true;
+  if (words <= 5) return true;
+
+  return false;
+}
+
 async function processText(event, cleanText, { force = false } = {}) {
   const normalized = normalizeChunkText(cleanText);
   if (!normalized || normalized.length < 2) return null;
   if (!force && normalized === event.lastTranscriptNorm) return null;
+
+  const lastEntry = event.transcripts[event.transcripts.length - 1];
+
+  if (shouldAppendToPreviousEntry(lastEntry, cleanText)) {
+    lastEntry.sourceLang = event.sourceLang;
+    lastEntry.original = sanitizeTranscriptText(`${lastEntry.original} ${cleanText}`);
+    await retranslateEntry(event, lastEntry);
+
+    event.lastTranscriptNorm = normalizeChunkText(lastEntry.original);
+    saveDb();
+
+    io.to(`event:${event.id}`).emit('transcript_source_updated', {
+      entryId: lastEntry.id,
+      sourceLang: lastEntry.sourceLang,
+      original: lastEntry.original,
+      translations: lastEntry.translations
+    });
+
+    return lastEntry;
+  }
 
   const translationPairs = await Promise.all(
     event.targetLangs.map(async (lang) => [lang, await translateText(cleanText, lang, event)])
@@ -383,13 +428,6 @@ async function processText(event, cleanText, { force = false } = {}) {
   saveDb();
   io.to(`event:${event.id}`).emit('transcript_entry', entry);
   return entry;
-}
-
-async function retranslateEntry(event, entry) {
-  const translationPairs = await Promise.all(
-    event.targetLangs.map(async (lang) => [lang, await translateText(entry.original, lang, event)])
-  );
-  entry.translations = Object.fromEntries(translationPairs);
 }
 
 async function flushSpeechBuffer(eventId, force = false) {
