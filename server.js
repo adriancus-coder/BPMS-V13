@@ -217,6 +217,7 @@ function normalizeEvent(event) {
     qrCodeDataUrl: event.qrCodeDataUrl || '',
     transcripts: Array.isArray(event.transcripts) ? event.transcripts : [],
     glossary: event.glossary || {},
+    sourceCorrections: event.sourceCorrections || {},
     audioMuted: !!event.audioMuted,
     audioVolume: typeof event.audioVolume === 'number' ? event.audioVolume : 70,
     createdAt: event.createdAt || new Date().toISOString(),
@@ -243,6 +244,7 @@ async function createEvent({ name, speed, sourceLang, targetLangs, baseUrl, sche
     qrCodeDataUrl,
     transcripts: [],
     glossary: {},
+    sourceCorrections: {},
     audioMuted: false,
     audioVolume: 70,
     createdAt: new Date().toISOString(),
@@ -256,6 +258,21 @@ async function createEvent({ name, speed, sourceLang, targetLangs, baseUrl, sche
   return normalizeEvent(event);
 }
 
+function applyReplacementMap(text, map) {
+  let out = String(text || '');
+
+  const entries = Object.entries(map || {})
+    .filter(([key, value]) => key && value)
+    .sort((a, b) => b[0].length - a[0].length);
+
+  for (const [key, value] of entries) {
+    const safe = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(safe, 'gi'), value);
+  }
+
+  return out;
+}
+
 function getGlossaryForLang(langCode, event) {
   const langMemory = {};
   for (const [key, value] of Object.entries(db.globalMemory || {})) {
@@ -265,14 +282,21 @@ function getGlossaryForLang(langCode, event) {
   return { ...langMemory, ...(event.glossary?.[langCode] || {}) };
 }
 
-function applyGlossary(text, glossary) {
-  let out = text;
-  for (const [key, value] of Object.entries(glossary || {})) {
-    if (!key || !value) continue;
-    const safe = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    out = out.replace(new RegExp(safe, 'gi'), value);
+function getSourceCorrections(event) {
+  const corrections = {};
+  for (const [key, value] of Object.entries(db.globalMemory || {})) {
+    const prefix = 'SRC::';
+    if (key.startsWith(prefix)) corrections[key.slice(prefix.length)] = value;
   }
-  return out;
+  return { ...corrections, ...(event.sourceCorrections || {}) };
+}
+
+function applyGlossary(text, glossary) {
+  return applyReplacementMap(text, glossary);
+}
+
+function applySourceCorrections(text, corrections) {
+  return applyReplacementMap(text, corrections);
 }
 
 function buildPrompt(sourceLangName, targetLangName, speed, glossary) {
@@ -596,6 +620,32 @@ app.post('/api/events/:id/glossary', (req, res) => {
   res.json({ ok: true });
 });
 
+app.post('/api/events/:id/source-corrections', (req, res) => {
+  const event = db.events[req.params.id];
+  if (!event) {
+    return res.status(404).json({ ok: false, error: 'Eveniment inexistent.' });
+  }
+
+  const heard = String(req.body.heard || '').trim();
+  const correct = String(req.body.correct || '').trim();
+  const permanent = !!req.body.permanent;
+
+  if (!heard || !correct) {
+    return res.status(400).json({ ok: false, error: 'Date lipsă.' });
+  }
+
+  event.sourceCorrections = event.sourceCorrections || {};
+  event.sourceCorrections[heard] = correct;
+
+  if (permanent) {
+    db.globalMemory[`SRC::${heard}`] = correct;
+  }
+
+  saveDb();
+  io.to(`event:${event.id}`).emit('source_corrections_updated', { heard, correct, permanent });
+  res.json({ ok: true });
+});
+
 app.post('/api/events/:id/audio', (req, res) => {
   const event = db.events[req.params.id];
   if (!event) {
@@ -648,7 +698,12 @@ app.post('/api/events/:id/transcribe', upload.single('audio'), async (req, res) 
 
   try {
     fs.writeFileSync(tempPath, req.file.buffer);
-    const transcript = sanitizeTranscriptText(await transcribeAudioFile(tempPath, event));
+
+    const rawTranscript = await transcribeAudioFile(tempPath, event);
+    const transcript = applySourceCorrections(
+      sanitizeTranscriptText(rawTranscript),
+      getSourceCorrections(event)
+    );
 
     if (!transcript) {
       return res.json({ ok: true, skipped: true });
