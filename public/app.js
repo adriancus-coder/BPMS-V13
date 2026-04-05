@@ -22,6 +22,8 @@ let audioState = {
   chunks: [],
   chunkTimer: null,
   mimeType: ''
+  monitorGainNode: null,
+monitorEnabled: false,
 };
 
 const langNames = {
@@ -450,6 +452,8 @@ async function destroyAudioPipeline() {
   audioState.source = null;
   audioState.gainNode = null;
   audioState.analyser = null;
+  audioState.monitorGainNode = null;
+audioState.monitorEnabled = false;
   audioState.destination = null;
   audioState.pendingBlob = null;
   audioState.busy = false;
@@ -500,6 +504,11 @@ async function createAudioPipeline() {
   audioState.source.connect(audioState.gainNode);
   audioState.gainNode.connect(audioState.analyser);
   audioState.gainNode.connect(audioState.destination);
+  audioState.monitorGainNode = audioState.context.createGain();
+audioState.monitorGainNode.gain.value = 0;
+
+audioState.gainNode.connect(audioState.monitorGainNode);
+audioState.monitorGainNode.connect(audioState.context.destination);
   updateInputGain();
   startMeterLoop();
 }
