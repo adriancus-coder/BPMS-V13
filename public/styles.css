@@ -743,3 +743,29 @@ label:has(#monitorAudioBox) {
     width: 100%;
   }
 }
+.participant-updating {
+  margin-bottom: 10px;
+  background: #4a1218;
+  border: 1px solid #d63b4a;
+  color: #ffe1e5;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.last-highlight {
+  background: #153524;
+  border: 1px solid #2f7d45;
+  padding: 18px;
+  border-radius: 18px;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.55;
+  color: #eafff0;
+}
+
+.history-item {
+  font-size: 16px;
+  line-height: 1.5;
+}
