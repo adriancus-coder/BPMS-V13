@@ -118,7 +118,7 @@ function summarizeEvent(event) {
 function sanitizeTranscriptText(text) {
   return String(text || '')
     .replace(/…/g, '')
-    .replace(/\.\.\.+/g, '')
+    .replace(/\.\.\.+/g, ' ')
     .replace(/\s+/g, ' ')
     .replace(/\s+([,.!?;:])/g, '$1')
     .trim();
@@ -138,14 +138,6 @@ function startsWithLowercase(text) {
   if (!clean) return false;
   const first = clean.trim().charAt(0);
   return first === first.toLowerCase() && first !== first.toUpperCase();
-}
-
-function endsWithWeakPunctuation(text) {
-  return /[,;:]$/.test(sanitizeTranscriptText(text));
-}
-
-function endsWithStrongPunctuation(text) {
-  return /[.!?]$/.test(sanitizeTranscriptText(text));
 }
 
 function startsLikeContinuation(text) {
@@ -192,13 +184,11 @@ function shouldFlushBufferedText(text) {
   const words = countWords(clean);
   const last = getLastWord(clean);
 
-  if (endsWithWeakPunctuation(clean)) return false;
-
-  if (endsWithStrongPunctuation(clean) && words >= 10) {
+  if (words >= 15 && !BUFFER_CONNECTORS.has(last)) {
     return true;
   }
 
-  if (words >= 12 && !BUFFER_CONNECTORS.has(last) && !endsWithWeakPunctuation(clean)) {
+  if (words >= 20) {
     return true;
   }
 
@@ -424,18 +414,10 @@ async function flushSpeechBuffer(eventId, force = false) {
   const last = getLastWord(text);
 
   if (!force) {
-    if (endsWithWeakPunctuation(text)) {
-      buffered.timer = setTimeout(() => {
-        flushSpeechBuffer(eventId, true).catch(console.error);
-      }, 2800);
-      speechBuffers.set(eventId, buffered);
-      return null;
-    }
-
     if (startsLikeContinuation(text) && words < 12) {
       buffered.timer = setTimeout(() => {
         flushSpeechBuffer(eventId, true).catch(console.error);
-      }, 2800);
+      }, 3600);
       speechBuffers.set(eventId, buffered);
       return null;
     }
@@ -443,7 +425,7 @@ async function flushSpeechBuffer(eventId, force = false) {
     if (BUFFER_CONNECTORS.has(last) && words < 12) {
       buffered.timer = setTimeout(() => {
         flushSpeechBuffer(eventId, true).catch(console.error);
-      }, 2800);
+      }, 3600);
       speechBuffers.set(eventId, buffered);
       return null;
     }
@@ -488,14 +470,14 @@ function queueSpeechText(eventId, text) {
     return;
   }
 
-  if (ageMs > 11000 || words >= 22) {
+  if (ageMs > 13000 || words >= 26) {
     flushSpeechBuffer(eventId, true).catch(console.error);
     return;
   }
 
   next.timer = setTimeout(() => {
     flushSpeechBuffer(eventId, true).catch(console.error);
-  }, 2800);
+  }, 3600);
 }
 
 app.get('/api/health', (req, res) => {
