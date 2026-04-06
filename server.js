@@ -184,8 +184,8 @@ function shouldFlushBufferedText(text) {
   const words = countWords(clean);
   const last = getLastWord(clean);
 
-  if (words >= 15 && !BUFFER_CONNECTORS.has(last)) return true;
-  if (words >= 20) return true;
+  if (words >= 10 && !BUFFER_CONNECTORS.has(last)) return true;
+  if (words >= 14) return true;
 
   return false;
 }
@@ -471,7 +471,7 @@ async function flushSpeechBuffer(eventId, force = false) {
     if (startsLikeContinuation(text) && words < 12) {
       buffered.timer = setTimeout(() => {
         flushSpeechBuffer(eventId, true).catch(console.error);
-      }, 3600);
+      }, 1400);
       speechBuffers.set(eventId, buffered);
       return null;
     }
@@ -479,7 +479,7 @@ async function flushSpeechBuffer(eventId, force = false) {
     if (BUFFER_CONNECTORS.has(last) && words < 12) {
       buffered.timer = setTimeout(() => {
         flushSpeechBuffer(eventId, true).catch(console.error);
-      }, 3600);
+      }, 1400);
       speechBuffers.set(eventId, buffered);
       return null;
     }
@@ -524,14 +524,14 @@ function queueSpeechText(eventId, text) {
     return;
   }
 
-  if (ageMs > 13000 || words >= 26) {
+  if (ageMs > 6000 || words >= 20) {
     flushSpeechBuffer(eventId, true).catch(console.error);
     return;
   }
 
   next.timer = setTimeout(() => {
     flushSpeechBuffer(eventId, true).catch(console.error);
-  }, 3600);
+  }, 1400);
 }
 
 app.get('/api/health', (req, res) => {
