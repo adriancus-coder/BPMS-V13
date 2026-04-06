@@ -47,12 +47,6 @@ function setParticipantUpdating(show) {
   badge.style.display = show ? 'block' : 'none';
 }
 
-function setJumpToLive(show) {
-  const btn = $('jumpToLiveBtn');
-  if (!btn) return;
-  btn.style.display = show ? 'inline-flex' : 'none';
-}
-
 function getHistoryElement() {
   return $('history');
 }
@@ -143,51 +137,6 @@ function syncLanguageOptions(event) {
   state.currentLanguage = select.value;
 }
 
-function renderParticipantView({ announce = false } = {}) {
-  if (!state.currentEvent) return;
-
-  const historyEl = getHistoryElement();
-  const wasNearBottom = isHistoryNearBottom();
-  const prevScrollHeight = historyEl ? historyEl.scrollHeight : 0;
-  const prevScrollTop = historyEl ? historyEl.scrollTop : 0;
-
-  const entries = sortEntries(state.currentEvent.transcripts || []);
-  const liveEntry = entries.length ? entries[entries.length - 1] : null;
-  const historyEntries = entries.slice(0, -1);
-
-  state.currentLiveEntryId = liveEntry?.id || null;
-
-  if (historyEl) {
-    historyEl.innerHTML = historyEntries.length
-      ? historyEntries.map((entry) => {
-          return `<div class="history-item" data-entry-id="${entry.id}">${escapeHtml(getTextForEntry(entry))}</div>`;
-        }).join('')
-      : `<div class="small">Istoricul va apărea aici.</div>`;
-  }
-
-  $('lastText').textContent = liveEntry ? getTextForEntry(liveEntry) : 'Aștept traducerea...';
-
-  if (historyEl) {
-    if (wasNearBottom) {
-      scrollHistoryToBottom();
-      setJumpToLive(false);
-    } else {
-      const diff = historyEl.scrollHeight - prevScrollHeight;
-      historyEl.scrollTop = prevScrollTop + diff;
-      if (liveEntry) {
-        setJumpToLive(true);
-      }
-    }
-  }
-
-  updateTopMeta();
-
-  if (announce && liveEntry && liveEntry.id !== state.lastSpokenEntryId) {
-    state.lastSpokenEntryId = liveEntry.id;
-    speakLatestEntry(liveEntry);
-  }
-}
-
 function updateEntryInState(payload) {
   if (!state.currentEvent) return;
 
@@ -198,6 +147,49 @@ function updateEntryInState(payload) {
   entry.original = payload.original;
   entry.translations = payload.translations || {};
   entry.edited = true;
+}
+
+function renderParticipantView({ announce = false } = {}) {
+  if (!state.currentEvent) return;
+
+  const historyEl = getHistoryElement();
+  const wasNearBottom = isHistoryNearBottom();
+  const prevScrollTop = historyEl ? historyEl.scrollTop : 0;
+
+  const entries = sortEntries(state.currentEvent.transcripts || []);
+  const liveEntry = entries.length ? entries[entries.length - 1] : null;
+  state.currentLiveEntryId = liveEntry?.id || null;
+
+  if (historyEl) {
+    historyEl.innerHTML = entries.length
+      ? entries.map((entry, index) => {
+          const isLive = index === entries.length - 1;
+          const text = escapeHtml(getTextForEntry(entry));
+
+          return `
+            <div class="history-item${isLive ? ' live-current' : ''}" data-entry-id="${entry.id}">
+              ${isLive ? '<div class="history-live-label">Live acum</div>' : ''}
+              <div class="history-text">${text}</div>
+            </div>
+          `;
+        }).join('')
+      : `<div class="small">Aștept traducerea...</div>`;
+  }
+
+  if (historyEl) {
+    if (wasNearBottom) {
+      scrollHistoryToBottom();
+    } else {
+      historyEl.scrollTop = prevScrollTop;
+    }
+  }
+
+  updateTopMeta();
+
+  if (announce && liveEntry && liveEntry.id !== state.lastSpokenEntryId) {
+    state.lastSpokenEntryId = liveEntry.id;
+    speakLatestEntry(liveEntry);
+  }
 }
 
 function handleLanguageChange() {
@@ -211,12 +203,6 @@ function handleLanguageChange() {
   }
 
   renderParticipantView({ announce: false });
-}
-
-function jumpToLive() {
-  scrollHistoryToBottom();
-  setJumpToLive(false);
-  $('lastText')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 async function resolveEventId() {
@@ -339,14 +325,6 @@ $('pauseAudioBtn').addEventListener('click', () => {
   state.localAudioEnabled = false;
   stopSpeech();
   setStatus('Audio local în pauză.');
-});
-
-$('jumpToLiveBtn').addEventListener('click', jumpToLive);
-
-getHistoryElement()?.addEventListener('scroll', () => {
-  if (isHistoryNearBottom()) {
-    setJumpToLive(false);
-  }
 });
 
 try {
