@@ -387,14 +387,16 @@ async function processText(event, cleanText, { force = false } = {}) {
     await retranslateEntry(event, lastEntry);
 
     event.lastTranscriptNorm = normalizeChunkText(lastEntry.original);
+    lastEntry.participantDirty = true;
     saveDb();
 
     io.to(`event:${event.id}:admins`).emit('transcript_source_updated', {
-  entryId: lastEntry.id,
-  sourceLang: lastEntry.sourceLang,
-  original: lastEntry.original,
-  translations: lastEntry.translations
-});
+      entryId: lastEntry.id,
+      sourceLang: lastEntry.sourceLang,
+      original: lastEntry.original,
+      translations: lastEntry.translations
+    });
+
     return lastEntry;
   }
 
@@ -410,6 +412,19 @@ async function processText(event, cleanText, { force = false } = {}) {
     createdAt: new Date().toISOString(),
     edited: false
   };
+
+  const previousEntry = event.transcripts[event.transcripts.length - 1];
+
+  if (previousEntry && previousEntry.participantDirty) {
+    previousEntry.participantDirty = false;
+
+    io.to(`event:${event.id}`).emit('transcript_source_updated', {
+      entryId: previousEntry.id,
+      sourceLang: previousEntry.sourceLang,
+      original: previousEntry.original,
+      translations: previousEntry.translations
+    });
+  }
 
   event.lastTranscriptNorm = normalized;
   event.transcripts.push(entry);
