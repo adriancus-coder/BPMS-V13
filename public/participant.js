@@ -87,11 +87,10 @@ function countWords(text) {
 function getLiveHoldMs(entry, updated = false) {
   const words = countWords(getTextForEntry(entry));
   if (updated) {
-    return words >= 14 ? 4500 : 3000;
+    return words >= 14 ? 2800 : 1800;
   }
-  return words >= 14 ? 6500 : 4500;
+  return words >= 14 ? 4200 : 2800;
 }
-
 function clearPromoteTimer() {
   if (state.promoteTimer) {
     clearTimeout(state.promoteTimer);
