@@ -24,7 +24,7 @@ const uiTexts = {
     languageLabel: 'Limba mea',
     play: 'Play audio',
     pause: 'Pause audio',
-    flow: 'Flux traducere',
+    flow: 'Istoric',
     liveNow: 'Live acum',
     inProgress: 'În lucru',
     updating: 'Se actualizează...',
@@ -43,7 +43,7 @@ const uiTexts = {
     languageLabel: 'Mitt språk',
     play: 'Spill av lyd',
     pause: 'Pause lyd',
-    flow: 'Oversettelsesflyt',
+    flow: 'Historikk',
     liveNow: 'Live nå',
     inProgress: 'Pågår',
     updating: 'Oppdateres...',
@@ -62,7 +62,7 @@ const uiTexts = {
     languageLabel: 'My language',
     play: 'Play audio',
     pause: 'Pause audio',
-    flow: 'Translation feed',
+    flow: 'History',
     liveNow: 'Live now',
     inProgress: 'In progress',
     updating: 'Updating...',
@@ -81,7 +81,7 @@ const uiTexts = {
     languageLabel: 'Mi idioma',
     play: 'Reproducir audio',
     pause: 'Pausar audio',
-    flow: 'Flujo de traducción',
+    flow: 'Historial',
     liveNow: 'En vivo ahora',
     inProgress: 'En curso',
     updating: 'Actualizando...',
@@ -100,7 +100,7 @@ const uiTexts = {
     languageLabel: 'Мой язык',
     play: 'Включить звук',
     pause: 'Пауза',
-    flow: 'Поток перевода',
+    flow: 'История',
     liveNow: 'Сейчас',
     inProgress: 'В процессе',
     updating: 'Обновляется...',
@@ -119,7 +119,7 @@ const uiTexts = {
     languageLabel: 'Моя мова',
     play: 'Увімкнути звук',
     pause: 'Пауза',
-    flow: 'Потік перекладу',
+    flow: 'Історія',
     liveNow: 'Зараз наживо',
     inProgress: 'У процесі',
     updating: 'Оновлюється...',
@@ -141,7 +141,7 @@ const state = {
   currentEvent: null,
   currentLanguage: 'no',
   historyEntryIds: [],
-  liveEntryIds: [],
+  currentWorkingEntryId: null,
   lastSpokenEntryId: null,
   localAudioEnabled: true,
   serverAudioMuted: false,
@@ -173,17 +173,14 @@ function setStatusByState() {
     setStatus(t('connecting'));
     return;
   }
-
   if (state.serverAudioMuted) {
     setStatus(t('audioOffByAdmin'));
     return;
   }
-
   if (!state.localAudioEnabled) {
     setStatus(t('audioPaused'));
     return;
   }
-
   setStatus(t('connected'));
 }
 
@@ -236,7 +233,6 @@ function detectPreferredSupportedLanguage(available = []) {
 
   for (const raw of candidates) {
     const code = String(raw).toLowerCase();
-
     if ((code.startsWith('nb') || code.startsWith('nn') || code.startsWith('no')) && available.includes('no')) return 'no';
     if (code.startsWith('ro') && available.includes('ro')) return 'ro';
     if (code.startsWith('ru') && available.includes('ru')) return 'ru';
@@ -335,17 +331,17 @@ function rebuildFlowFromCurrentEvent() {
   const entries = sortEntries(state.currentEvent?.transcripts || []);
 
   state.historyEntryIds = [];
-  state.liveEntryIds = [];
+  state.currentWorkingEntryId = null;
 
   if (!entries.length) return;
 
   if (entries.length === 1) {
-    state.liveEntryIds = [entries[0].id];
+    state.currentWorkingEntryId = entries[0].id;
     return;
   }
 
-  state.historyEntryIds = entries.slice(0, -2).map((x) => x.id);
-  state.liveEntryIds = entries.slice(-2).map((x) => x.id);
+  state.historyEntryIds = entries.slice(0, -1).map((x) => x.id);
+  state.currentWorkingEntryId = entries[entries.length - 1].id;
 }
 
 function renderParticipantView({ announce = false } = {}) {
@@ -356,34 +352,33 @@ function renderParticipantView({ announce = false } = {}) {
   const prevScrollTop = historyEl ? historyEl.scrollTop : 0;
   const prevScrollHeight = historyEl ? historyEl.scrollHeight : 0;
 
-  const historyHtml = state.historyEntryIds.map((entryId) => {
+  const historyHtml = state.historyEntryIds.map((entryId, index) => {
     const entry = getEntryById(entryId);
     if (!entry) return '';
+
+    const isLastHistory = index === state.historyEntryIds.length - 1;
+    const itemClass = isLastHistory ? 'history-item live-current' : 'history-item';
+
     return `
-      <div class="history-item" data-entry-id="${entry.id}">
+      <div class="${itemClass}" data-entry-id="${entry.id}">
+        ${isLastHistory ? `<div class="history-live-label">${t('liveNow')}</div>` : ''}
         <div class="history-text">${escapeHtml(getTextForEntry(entry))}</div>
       </div>
     `;
   }).join('');
 
-  const liveHtml = state.liveEntryIds.map((entryId, index) => {
-    const entry = getEntryById(entryId);
-    if (!entry) return '';
-
-    const isLatest = index === state.liveEntryIds.length - 1;
-    const liveClass = isLatest ? 'live-current' : 'live-secondary';
-    const liveLabel = isLatest ? t('liveNow') : t('inProgress');
-
-    return `
-      <div class="history-item ${liveClass}" data-entry-id="${entry.id}">
-        <div class="history-live-label">${liveLabel}</div>
-        <div class="history-text">${escapeHtml(getTextForEntry(entry))}</div>
+  const workingEntry = getEntryById(state.currentWorkingEntryId);
+  const workingHtml = workingEntry
+    ? `
+      <div class="working-zone" data-entry-id="${workingEntry.id}">
+        <div class="history-live-label working-label">${t('inProgress')}</div>
+        <div class="history-text">${escapeHtml(getTextForEntry(workingEntry))}</div>
       </div>
-    `;
-  }).join('');
+    `
+    : '';
 
   if (historyEl) {
-    historyEl.innerHTML = `${historyHtml}${liveHtml}` || `<div class="small">${escapeHtml(t('waiting'))}</div>`;
+    historyEl.innerHTML = `${historyHtml}${workingHtml}` || `<div class="small">${escapeHtml(t('waiting'))}</div>`;
   }
 
   if (historyEl) {
@@ -399,12 +394,10 @@ function renderParticipantView({ announce = false } = {}) {
   updateTopMeta();
   setStatusByState();
 
-  const latestLiveId = state.liveEntryIds.length ? state.liveEntryIds[state.liveEntryIds.length - 1] : null;
-  const latestLiveEntry = latestLiveId ? getEntryById(latestLiveId) : null;
-
-  if (announce && latestLiveEntry && latestLiveEntry.id !== state.lastSpokenEntryId) {
-    state.lastSpokenEntryId = latestLiveEntry.id;
-    speakLatestEntry(latestLiveEntry);
+  const latestEntry = workingEntry || getEntryById(state.historyEntryIds[state.historyEntryIds.length - 1]);
+  if (announce && latestEntry && latestEntry.id !== state.lastSpokenEntryId) {
+    state.lastSpokenEntryId = latestEntry.id;
+    speakLatestEntry(latestEntry);
   }
 }
 
@@ -501,13 +494,13 @@ socket.on('transcript_source_updated', (payload) => {
 });
 
 socket.on('entry_refreshing', ({ entryId }) => {
-  if (entryId && state.liveEntryIds.includes(entryId)) {
+  if (entryId && entryId === state.currentWorkingEntryId) {
     setParticipantUpdating(true);
   }
 });
 
 socket.on('entry_refresh_failed', ({ entryId }) => {
-  if (entryId && state.liveEntryIds.includes(entryId)) {
+  if (entryId && entryId === state.currentWorkingEntryId) {
     setParticipantUpdating(false);
   }
 });
@@ -534,10 +527,9 @@ $('playAudioBtn').addEventListener('click', () => {
   state.localAudioEnabled = true;
   setStatusByState();
 
-  const latestLiveId = state.liveEntryIds.length ? state.liveEntryIds[state.liveEntryIds.length - 1] : null;
-  const latestLiveEntry = latestLiveId ? getEntryById(latestLiveId) : null;
-  if (latestLiveEntry) {
-    speakLatestEntry(latestLiveEntry);
+  const latestEntry = getEntryById(state.currentWorkingEntryId) || getEntryById(state.historyEntryIds[state.historyEntryIds.length - 1]);
+  if (latestEntry) {
+    speakLatestEntry(latestEntry);
   }
 });
 
