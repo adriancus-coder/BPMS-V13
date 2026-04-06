@@ -769,3 +769,130 @@ label:has(#monitorAudioBox) {
   font-size: 16px;
   line-height: 1.5;
 }
+.participant-wrap-compact {
+  max-width: 1100px;
+  gap: 12px;
+}
+
+.participant-hero-compact {
+  padding: 14px 16px;
+}
+
+.participant-hero-compact .header-logo {
+  font-size: 28px;
+}
+
+.participant-hero-compact .participant-event-name {
+  margin-top: 4px;
+  font-size: 20px;
+}
+
+.participant-hero-compact .participant-event-meta {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.participant-top-bar {
+  padding: 12px 14px;
+}
+
+.participant-top-grid {
+  display: grid;
+  grid-template-columns: 220px 240px 1fr;
+  gap: 12px;
+  align-items: end;
+}
+
+.participant-top-field label {
+  margin-bottom: 4px;
+}
+
+.participant-top-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.participant-top-actions button {
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.participant-top-status {
+  min-width: 0;
+}
+
+.participant-history-panel {
+  padding: 14px 16px;
+}
+
+.participant-history-scroll {
+  max-height: 42vh;
+  overflow: auto;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.participant-wrap .history-item {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-size: 24px;
+  line-height: 1.6;
+  color: #eef4ff;
+}
+
+.participant-live-panel {
+  padding: 16px 18px;
+}
+
+.participant-updating {
+  margin-bottom: 10px;
+  background: #4a1218;
+  border: 1px solid #d63b4a;
+  color: #ffe1e5;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.participant-live-text.last-highlight {
+  background: #153524;
+  border: 1px solid #2f7d45;
+  padding: 22px 24px;
+  border-radius: 18px;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.6;
+  color: #eafff0;
+}
+
+@media (max-width: 900px) {
+  .participant-top-grid {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .participant-top-actions {
+    flex-direction: column;
+  }
+
+  .participant-top-actions button {
+    width: 100%;
+  }
+
+  .participant-wrap .history-item {
+    font-size: 20px;
+  }
+
+  .participant-live-text.last-highlight {
+    font-size: 21px;
+    padding: 18px;
+  }
+
+  .participant-history-scroll {
+    max-height: 46vh;
+  }
+}
