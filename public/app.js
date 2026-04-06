@@ -840,7 +840,7 @@ async function startTranslation() {
       if (audioState.recorder && audioState.recorder.state === 'recording') {
         audioState.recorder.stop();
       }
-    }, 5200);
+    }, 8500);
   };
 
   startRecorderCycle();
