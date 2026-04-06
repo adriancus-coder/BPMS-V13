@@ -340,13 +340,21 @@ async function translateText(text, langCode, event) {
 async function transcribeAudioFile(filePath, event) {
   if (!client) return '';
 
-  const result = await client.audio.transcriptions.create({
+  const request = {
     file: fs.createReadStream(filePath),
     model: OPENAI_TRANSCRIBE_MODEL,
-    language: event.sourceLang || 'ro',
-    response_format: 'json'
-  });
+    response_format: 'json',
+    prompt:
+      event.sourceLang === 'no'
+        ? 'The audio is a Christian sermon in Norwegian. Keep the transcript in Norwegian. Use natural punctuation. Common terms may include Jesus, Kristus, Herren, Den Hellige Ånd, menighet, evangeliet, apostel, nåde, kjærlighet, synd, frelse.'
+        : 'The audio is a live sermon. Keep names and punctuation natural.'
+  };
 
+  if (event.sourceLang !== 'no') {
+    request.language = event.sourceLang || 'ro';
+  }
+
+  const result = await client.audio.transcriptions.create(request);
   return String(result?.text || '').trim();
 }
 
