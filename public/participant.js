@@ -24,6 +24,10 @@ const state = {
   currentEvent: null,
   currentLanguage: 'no',
   currentLiveEntryId: null,
+  historyEntryIds: [],
+  pendingEntryIds: [],
+  liveHoldUntil: 0,
+  promoteTimer: null,
   lastSpokenEntryId: null,
   localAudioEnabled: true,
   serverAudioMuted: false
@@ -67,9 +71,116 @@ function sortEntries(entries = []) {
   return [...entries].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 }
 
+function getEntryById(entryId) {
+  return (state.currentEvent?.transcripts || []).find((x) => x.id === entryId) || null;
+}
+
 function getTextForEntry(entry) {
   if (!entry) return '';
   return entry.translations?.[state.currentLanguage] || entry.original || '';
+}
+
+function countWords(text) {
+  return String(text || '').trim().split(/\s+/).filter(Boolean).length;
+}
+
+function getLiveHoldMs(entry, updated = false) {
+  const words = countWords(getTextForEntry(entry));
+  if (updated) {
+    return words >= 14 ? 4500 : 3000;
+  }
+  return words >= 14 ? 6500 : 4500;
+}
+
+function clearPromoteTimer() {
+  if (state.promoteTimer) {
+    clearTimeout(state.promoteTimer);
+    state.promoteTimer = null;
+  }
+}
+
+function queueEntryId(entryId) {
+  if (!entryId) return;
+  if (state.currentLiveEntryId === entryId) return;
+  if (state.historyEntryIds.includes(entryId)) return;
+  if (state.pendingEntryIds.includes(entryId)) return;
+  state.pendingEntryIds.push(entryId);
+}
+
+function addHistoryEntryId(entryId) {
+  if (!entryId) return;
+  if (state.historyEntryIds.includes(entryId)) return;
+  state.historyEntryIds.push(entryId);
+}
+
+function setLiveEntry(entryId, { announce = false, updated = false } = {}) {
+  if (!entryId) return;
+
+  state.currentLiveEntryId = entryId;
+  const entry = getEntryById(entryId);
+  state.liveHoldUntil = Date.now() + getLiveHoldMs(entry, updated);
+
+  renderParticipantView({ announce });
+
+  if (announce && entry && entry.id !== state.lastSpokenEntryId) {
+    state.lastSpokenEntryId = entry.id;
+    speakLatestEntry(entry);
+  }
+}
+
+function promoteNextEntryIfReady() {
+  clearPromoteTimer();
+
+  if (!state.currentLiveEntryId) {
+    const nextId = state.pendingEntryIds.shift();
+    if (nextId) {
+      setLiveEntry(nextId, { announce: true, updated: false });
+      schedulePromotionCheck();
+    }
+    return;
+  }
+
+  if (!state.pendingEntryIds.length) return;
+
+  const now = Date.now();
+  if (now < state.liveHoldUntil) {
+    state.promoteTimer = setTimeout(() => {
+      promoteNextEntryIfReady();
+    }, Math.max(50, state.liveHoldUntil - now));
+    return;
+  }
+
+  addHistoryEntryId(state.currentLiveEntryId);
+  const nextId = state.pendingEntryIds.shift();
+  state.currentLiveEntryId = null;
+
+  if (nextId) {
+    setLiveEntry(nextId, { announce: true, updated: false });
+    schedulePromotionCheck();
+  } else {
+    renderParticipantView({ announce: false });
+  }
+}
+
+function schedulePromotionCheck() {
+  clearPromoteTimer();
+
+  if (!state.pendingEntryIds.length) return;
+  if (!state.currentLiveEntryId) {
+    promoteNextEntryIfReady();
+    return;
+  }
+
+  const delay = Math.max(50, state.liveHoldUntil - Date.now());
+  state.promoteTimer = setTimeout(() => {
+    promoteNextEntryIfReady();
+  }, delay);
+}
+
+function stopSpeech() {
+  try {
+    window.speechSynthesis?.cancel();
+  } catch (_) {}
 }
 
 function getVoiceForCurrentLanguage() {
@@ -77,12 +188,6 @@ function getVoiceForCurrentLanguage() {
   const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
   const voice = voices.find((v) => (v.lang || '').toLowerCase().startsWith(locale.toLowerCase().split('-')[0]));
   return { locale, voice: voice || null };
-}
-
-function stopSpeech() {
-  try {
-    window.speechSynthesis?.cancel();
-  } catch (_) {}
 }
 
 function speakLatestEntry(entry) {
@@ -140,7 +245,7 @@ function syncLanguageOptions(event) {
 function updateEntryInState(payload) {
   if (!state.currentEvent) return;
 
-  const entry = (state.currentEvent.transcripts || []).find((x) => x.id === payload.entryId);
+  const entry = getEntryById(payload.entryId);
   if (!entry) return;
 
   entry.sourceLang = payload.sourceLang;
@@ -149,38 +254,64 @@ function updateEntryInState(payload) {
   entry.edited = true;
 }
 
+function rebuildFlowFromCurrentEvent() {
+  clearPromoteTimer();
+  state.historyEntryIds = [];
+  state.pendingEntryIds = [];
+  state.currentLiveEntryId = null;
+  state.liveHoldUntil = 0;
+
+  const entries = sortEntries(state.currentEvent?.transcripts || []);
+  if (!entries.length) return;
+
+  const history = entries.slice(0, -1);
+  const live = entries[entries.length - 1];
+
+  state.historyEntryIds = history.map((x) => x.id);
+  state.currentLiveEntryId = live.id;
+  state.liveHoldUntil = Date.now() + getLiveHoldMs(live, false);
+}
+
 function renderParticipantView({ announce = false } = {}) {
   if (!state.currentEvent) return;
 
   const historyEl = getHistoryElement();
   const wasNearBottom = isHistoryNearBottom();
   const prevScrollTop = historyEl ? historyEl.scrollTop : 0;
+  const prevScrollHeight = historyEl ? historyEl.scrollHeight : 0;
 
-  const entries = sortEntries(state.currentEvent.transcripts || []);
-  const liveEntry = entries.length ? entries[entries.length - 1] : null;
-  state.currentLiveEntryId = liveEntry?.id || null;
+  const historyHtml = state.historyEntryIds
+    .map((entryId) => {
+      const entry = getEntryById(entryId);
+      if (!entry) return '';
+      return `
+        <div class="history-item" data-entry-id="${entry.id}">
+          <div class="history-text">${escapeHtml(getTextForEntry(entry))}</div>
+        </div>
+      `;
+    })
+    .join('');
+
+  const liveEntry = getEntryById(state.currentLiveEntryId);
+  const liveHtml = liveEntry
+    ? `
+      <div class="history-item live-current" data-entry-id="${liveEntry.id}">
+        <div class="history-live-label">Live acum</div>
+        <div class="history-text">${escapeHtml(getTextForEntry(liveEntry))}</div>
+      </div>
+    `
+    : `<div class="small">Aștept traducerea...</div>`;
 
   if (historyEl) {
-    historyEl.innerHTML = entries.length
-      ? entries.map((entry, index) => {
-          const isLive = index === entries.length - 1;
-          const text = escapeHtml(getTextForEntry(entry));
-
-          return `
-            <div class="history-item${isLive ? ' live-current' : ''}" data-entry-id="${entry.id}">
-              ${isLive ? '<div class="history-live-label">Live acum</div>' : ''}
-              <div class="history-text">${text}</div>
-            </div>
-          `;
-        }).join('')
-      : `<div class="small">Aștept traducerea...</div>`;
+    historyEl.innerHTML = `${historyHtml}${liveHtml}`;
   }
 
   if (historyEl) {
     if (wasNearBottom) {
       scrollHistoryToBottom();
     } else {
-      historyEl.scrollTop = prevScrollTop;
+      const diff = historyEl.scrollHeight - prevScrollHeight;
+      historyEl.scrollTop = prevScrollTop + Math.max(0, diff);
     }
   }
 
@@ -251,7 +382,7 @@ socket.on('joined_event', ({ event, role }) => {
   state.serverAudioMuted = !!event.audioMuted;
 
   syncLanguageOptions(event);
-  updateTopMeta();
+  rebuildFlowFromCurrentEvent();
   renderParticipantView({ announce: false });
   setParticipantUpdating(false);
 
@@ -266,10 +397,21 @@ socket.on('transcript_entry', (entry) => {
   if (!state.currentEvent) return;
 
   state.currentEvent.transcripts = state.currentEvent.transcripts || [];
-  state.currentEvent.transcripts.push(entry);
+
+  const exists = getEntryById(entry.id);
+  if (!exists) {
+    state.currentEvent.transcripts.push(entry);
+  }
 
   setParticipantUpdating(false);
-  renderParticipantView({ announce: true });
+
+  if (!state.currentLiveEntryId) {
+    setLiveEntry(entry.id, { announce: true, updated: false });
+    return;
+  }
+
+  queueEntryId(entry.id);
+  schedulePromotionCheck();
 });
 
 socket.on('transcript_source_updated', (payload) => {
@@ -277,6 +419,15 @@ socket.on('transcript_source_updated', (payload) => {
 
   updateEntryInState(payload);
   setParticipantUpdating(false);
+
+  if (payload.entryId === state.currentLiveEntryId) {
+    const liveEntry = getEntryById(state.currentLiveEntryId);
+    state.liveHoldUntil = Date.now() + getLiveHoldMs(liveEntry, true);
+    renderParticipantView({ announce: false });
+    schedulePromotionCheck();
+    return;
+  }
+
   renderParticipantView({ announce: false });
 });
 
@@ -314,8 +465,8 @@ $('languageSelect').addEventListener('change', handleLanguageChange);
 $('playAudioBtn').addEventListener('click', () => {
   state.localAudioEnabled = true;
   setStatus(state.serverAudioMuted ? 'Audio oprit de admin.' : 'Audio local activ.');
-  const entries = sortEntries(state.currentEvent?.transcripts || []);
-  const liveEntry = entries.length ? entries[entries.length - 1] : null;
+
+  const liveEntry = getEntryById(state.currentLiveEntryId);
   if (liveEntry) {
     speakLatestEntry(liveEntry);
   }
