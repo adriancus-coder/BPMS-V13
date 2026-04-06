@@ -389,13 +389,12 @@ async function processText(event, cleanText, { force = false } = {}) {
     event.lastTranscriptNorm = normalizeChunkText(lastEntry.original);
     saveDb();
 
-    io.to(`event:${event.id}`).emit('transcript_source_updated', {
-      entryId: lastEntry.id,
-      sourceLang: lastEntry.sourceLang,
-      original: lastEntry.original,
-      translations: lastEntry.translations
-    });
-
+    io.to(`event:${event.id}:admins`).emit('transcript_source_updated', {
+  entryId: lastEntry.id,
+  sourceLang: lastEntry.sourceLang,
+  original: lastEntry.original,
+  translations: lastEntry.translations
+});
     return lastEntry;
   }
 
