@@ -1044,3 +1044,48 @@ label:has(#monitorAudioBox) {
     max-height: 66vh;
   }
 }
+.participant-wrap .history-item.live-secondary {
+  background: #0f2338;
+  border: 1px solid #274268;
+  border-radius: 18px;
+  padding: 16px 18px;
+  margin-top: 10px;
+}
+
+.participant-wrap .history-item.live-secondary .history-text {
+  font-size: 24px;
+  line-height: 1.6;
+  color: #eef4ff;
+  font-weight: 700;
+}
+
+.participant-wrap .history-item.live-current {
+  background: #153524;
+  border: 1px solid #2f7d45;
+  border-radius: 18px;
+  padding: 18px 20px;
+  margin-top: 10px;
+  box-shadow: 0 -6px 16px rgba(7, 18, 36, 0.35);
+}
+
+.participant-wrap .history-item.live-current .history-text {
+  font-size: 24px;
+  line-height: 1.6;
+  color: #eafff0;
+  font-weight: 800;
+}
+
+.history-live-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.participant-wrap .history-item.live-secondary .history-live-label {
+  color: #b9d8ff;
+}
+
+.participant-wrap .history-item.live-current .history-live-label {
+  color: #b7f3c8;
+}
