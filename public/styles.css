@@ -896,3 +896,151 @@ label:has(#monitorAudioBox) {
     max-height: 46vh;
   }
 }
+.participant-wrap-compact {
+  max-width: 1100px;
+  gap: 12px;
+}
+
+.participant-hero-compact {
+  padding: 14px 16px;
+}
+
+.participant-hero-compact .header-logo {
+  font-size: 28px;
+}
+
+.participant-hero-compact .participant-event-name {
+  margin-top: 4px;
+  font-size: 20px;
+}
+
+.participant-hero-compact .participant-event-meta {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.participant-top-bar {
+  padding: 12px 14px;
+}
+
+.participant-top-grid {
+  display: grid;
+  grid-template-columns: 220px 240px 1fr;
+  gap: 12px;
+  align-items: end;
+}
+
+.participant-top-field label {
+  margin-bottom: 4px;
+}
+
+.participant-top-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.participant-top-actions button {
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.participant-top-status {
+  min-width: 0;
+}
+
+.participant-history-panel {
+  padding: 14px 16px;
+}
+
+.participant-updating {
+  margin-bottom: 10px;
+  background: #4a1218;
+  border: 1px solid #d63b4a;
+  color: #ffe1e5;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.participant-history-scroll {
+  max-height: 64vh;
+  overflow: auto;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+}
+
+.participant-wrap .history-item {
+  border-top: 1px solid var(--border);
+  padding: 12px 0 0 0;
+  font-size: 24px;
+  line-height: 1.6;
+  color: #eef4ff;
+}
+
+.participant-wrap .history-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.participant-wrap .history-text {
+  font-size: 24px;
+  line-height: 1.6;
+  color: #eef4ff;
+}
+
+.participant-wrap .history-item.live-current {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: #153524;
+  border: 1px solid #2f7d45;
+  border-radius: 18px;
+  padding: 18px 20px;
+  box-shadow: 0 -10px 20px rgba(7, 18, 36, 0.65);
+}
+
+.participant-wrap .history-item.live-current .history-text {
+  font-size: 24px;
+  line-height: 1.6;
+  color: #eafff0;
+  font-weight: 800;
+}
+
+.history-live-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #b7f3c8;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 900px) {
+  .participant-top-grid {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .participant-top-actions {
+    flex-direction: column;
+  }
+
+  .participant-top-actions button {
+    width: 100%;
+  }
+
+  .participant-wrap .history-item,
+  .participant-wrap .history-text,
+  .participant-wrap .history-item.live-current .history-text {
+    font-size: 20px;
+    line-height: 1.55;
+  }
+
+  .participant-history-scroll {
+    max-height: 66vh;
+  }
+}
