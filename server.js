@@ -177,6 +177,36 @@ function mergeTranscriptText(prevText, nextText) {
   return `${prev} ${next}`.replace(/\s+/g, ' ').trim();
 }
 
+function splitIntoDisplayChunks(text) {
+  const clean = sanitizeTranscriptText(text);
+  if (!clean) return [];
+
+  const sentences = clean
+    .split(/(?<=[.!?])\s+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  if (!sentences.length) return [clean];
+
+  const chunks = [];
+  let current = [];
+
+  for (const sentence of sentences) {
+    current.push(sentence);
+
+    if (current.length >= 2) {
+      chunks.push(current.join(' ').trim());
+      current = [];
+    }
+  }
+
+  if (current.length) {
+    chunks.push(current.join(' ').trim());
+  }
+
+  return chunks.filter(Boolean);
+}
+
 function shouldFlushBufferedText(text) {
   const clean = sanitizeTranscriptText(text);
   if (!clean) return false;
@@ -184,8 +214,8 @@ function shouldFlushBufferedText(text) {
   const words = countWords(clean);
   const last = getLastWord(clean);
 
-  if (words >= 10 && !BUFFER_CONNECTORS.has(last)) return true;
-  if (words >= 14) return true;
+  if (words >= 8 && !BUFFER_CONNECTORS.has(last)) return true;
+  if (words >= 12) return true;
 
   return false;
 }
@@ -382,44 +412,12 @@ function shouldAppendToPreviousEntry(previousEntry, newText) {
   return false;
 }
 
-async function processText(event, cleanText, { force = false } = {}) {
-  const normalized = normalizeChunkText(cleanText);
-  if (!normalized || normalized.length < 2) return null;
-  if (!force && normalized === event.lastTranscriptNorm) return null;
+async function publishNewChunk(event, chunk) {
+  const cleanChunk = sanitizeTranscriptText(chunk);
+  if (!cleanChunk) return null;
 
-  const lastEntry = event.transcripts[event.transcripts.length - 1];
-
-  if (shouldAppendToPreviousEntry(lastEntry, cleanText)) {
-    lastEntry.sourceLang = event.sourceLang;
-    lastEntry.original = sanitizeTranscriptText(`${lastEntry.original} ${cleanText}`);
-    await retranslateEntry(event, lastEntry);
-
-    event.lastTranscriptNorm = normalizeChunkText(lastEntry.original);
-    lastEntry.participantDirty = true;
-    saveDb();
-
-    io.to(`event:${event.id}:admins`).emit('transcript_source_updated', {
-      entryId: lastEntry.id,
-      sourceLang: lastEntry.sourceLang,
-      original: lastEntry.original,
-      translations: lastEntry.translations
-    });
-
-    return lastEntry;
-  }
-
-  const translationPairs = await Promise.all(
-    event.targetLangs.map(async (lang) => [lang, await translateText(cleanText, lang, event)])
-  );
-
-  const entry = {
-    id: randomUUID(),
-    sourceLang: event.sourceLang,
-    original: cleanText,
-    translations: Object.fromEntries(translationPairs),
-    createdAt: new Date().toISOString(),
-    edited: false
-  };
+  const chunkNormalized = normalizeChunkText(cleanChunk);
+  if (!chunkNormalized || chunkNormalized.length < 2) return null;
 
   const previousEntry = event.transcripts[event.transcripts.length - 1];
 
@@ -434,7 +432,20 @@ async function processText(event, cleanText, { force = false } = {}) {
     });
   }
 
-  event.lastTranscriptNorm = normalized;
+  const translationPairs = await Promise.all(
+    event.targetLangs.map(async (lang) => [lang, await translateText(cleanChunk, lang, event)])
+  );
+
+  const entry = {
+    id: randomUUID(),
+    sourceLang: event.sourceLang,
+    original: cleanChunk,
+    translations: Object.fromEntries(translationPairs),
+    createdAt: new Date().toISOString(),
+    edited: false
+  };
+
+  event.lastTranscriptNorm = chunkNormalized;
   event.transcripts.push(entry);
 
   if (event.transcripts.length > 300) {
@@ -444,6 +455,54 @@ async function processText(event, cleanText, { force = false } = {}) {
   saveDb();
   io.to(`event:${event.id}`).emit('transcript_entry', entry);
   return entry;
+}
+
+async function processText(event, cleanText, { force = false } = {}) {
+  const normalized = normalizeChunkText(cleanText);
+  if (!normalized || normalized.length < 2) return null;
+  if (!force && normalized === event.lastTranscriptNorm) return null;
+
+  const lastEntry = event.transcripts[event.transcripts.length - 1];
+
+  if (shouldAppendToPreviousEntry(lastEntry, cleanText)) {
+    const combinedText = sanitizeTranscriptText(`${lastEntry.original} ${cleanText}`);
+    const chunks = splitIntoDisplayChunks(combinedText);
+    const firstChunk = chunks.shift() || combinedText;
+
+    lastEntry.sourceLang = event.sourceLang;
+    lastEntry.original = firstChunk;
+    await retranslateEntry(event, lastEntry);
+
+    event.lastTranscriptNorm = normalizeChunkText(firstChunk);
+    lastEntry.participantDirty = true;
+    saveDb();
+
+    io.to(`event:${event.id}:admins`).emit('transcript_source_updated', {
+      entryId: lastEntry.id,
+      sourceLang: lastEntry.sourceLang,
+      original: lastEntry.original,
+      translations: lastEntry.translations
+    });
+
+    let lastCreatedEntry = lastEntry;
+
+    for (const extraChunk of chunks) {
+      const created = await publishNewChunk(event, extraChunk);
+      if (created) lastCreatedEntry = created;
+    }
+
+    return lastCreatedEntry;
+  }
+
+  const chunks = splitIntoDisplayChunks(cleanText);
+  let lastCreatedEntry = null;
+
+  for (const chunk of chunks) {
+    const created = await publishNewChunk(event, chunk);
+    if (created) lastCreatedEntry = created;
+  }
+
+  return lastCreatedEntry;
 }
 
 async function flushSpeechBuffer(eventId, force = false) {
@@ -524,7 +583,7 @@ function queueSpeechText(eventId, text) {
     return;
   }
 
-  if (ageMs > 6000 || words >= 20) {
+  if (ageMs > 4200 || words >= 14) {
     flushSpeechBuffer(eventId, true).catch(console.error);
     return;
   }
