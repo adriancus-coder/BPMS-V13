@@ -8,6 +8,8 @@ let selectedEntryId = null;
 let sourceEditLock = false;
 let activeTab = 'live';
 let lastManualEnterAt = 0;
+let screenWakeLock = null;
+window.isRecognitionRunning = false;
 
 let audioState = {
   stream: null,
@@ -50,6 +52,40 @@ function setOnAirState(isOn) {
   if (!badge) return;
   badge.textContent = isOn ? 'On-Air' : 'Off-Air';
   badge.className = isOn ? 'status-pill active' : 'status-pill';
+}
+
+async function enableScreenWakeLock() {
+  try {
+    if (!('wakeLock' in navigator)) {
+      console.log('Wake Lock nu este suportat pe acest browser');
+      return;
+    }
+
+    if (document.visibilityState !== 'visible') return;
+    if (screenWakeLock) return;
+
+    screenWakeLock = await navigator.wakeLock.request('screen');
+
+    screenWakeLock.addEventListener('release', () => {
+      console.log('Wake Lock eliberat');
+      screenWakeLock = null;
+    });
+
+    console.log('Wake Lock activ');
+  } catch (err) {
+    console.error('Wake Lock error:', err?.name || err, err?.message || '');
+  }
+}
+
+async function disableScreenWakeLock() {
+  try {
+    if (screenWakeLock) {
+      await screenWakeLock.release();
+      screenWakeLock = null;
+    }
+  } catch (err) {
+    console.error('Wake Lock release error:', err?.name || err, err?.message || '');
+  }
 }
 
 function switchTab(tabName) {
@@ -638,7 +674,7 @@ function updateInputGain() {
   const value = Number($('inputGainRange').value || 100);
   $('inputGainLabel').textContent = `${value}%`;
   if (audioState.gainNode) {
-    audioState.gainNode.gain.value = value / 100;
+    audioState.gain.value = value / 100;
   }
 }
 
@@ -803,8 +839,10 @@ async function startTranslation() {
 
   audioState.running = true;
   audioState.mimeType = mimeType;
+  window.isRecognitionRunning = true;
   switchTab('live');
   setOnAirState(true);
+  await enableScreenWakeLock();
 
   const startRecorderCycle = () => {
     if (!audioState.running) return;
@@ -849,6 +887,7 @@ async function startTranslation() {
 
 async function stopTranslation() {
   audioState.running = false;
+  window.isRecognitionRunning = false;
 
   if (audioState.chunkTimer) {
     clearTimeout(audioState.chunkTimer);
@@ -856,6 +895,7 @@ async function stopTranslation() {
   }
 
   setOnAirState(false);
+  await disableScreenWakeLock();
 
   if (audioState.recorder && audioState.recorder.state === 'recording') {
     audioState.recorder.stop();
@@ -1150,6 +1190,16 @@ $('eventList').addEventListener('click', async (e) => {
       setStatus('Evenimentul a fost șters.');
     }
   }
+});
+
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && window.isRecognitionRunning && !screenWakeLock) {
+    await enableScreenWakeLock();
+  }
+});
+
+window.addEventListener('beforeunload', async () => {
+  await disableScreenWakeLock();
 });
 
 window.addEventListener('load', async () => {
