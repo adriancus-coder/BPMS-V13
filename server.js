@@ -92,6 +92,7 @@ function saveDb() {
 }
 
 const speechBuffers = new Map();
+const participantPresence = new Map();
 
 const BUFFER_CONNECTORS = new Set([
   'și', 'si', 'să', 'sa', 'că', 'ca', 'dar', 'iar', 'ori', 'sau',
@@ -181,27 +182,82 @@ function splitIntoDisplayChunks(text) {
   const clean = sanitizeTranscriptText(text);
   if (!clean) return [];
 
-  const sentences = clean
-    .split(/(?<=[.!?])\s+/)
-    .map((x) => x.trim())
-    .filter(Boolean);
+  const sentenceUnits =
+    clean.match(/[^.!?]+[.!?]?/g)?.map((x) => x.trim()).filter(Boolean) || [clean];
 
-  if (!sentences.length) return [clean];
+  const smallPieces = [];
 
-  const chunks = [];
-  let current = [];
+  for (const sentence of sentenceUnits) {
+    if (countWords(sentence) <= 12 && sentence.length <= 120) {
+      smallPieces.push(sentence);
+      continue;
+    }
 
-  for (const sentence of sentences) {
-    current.push(sentence);
+    const softerParts = sentence
+      .split(/(?<=[,;:])\s+|\s+(?=(?:și|si|dar|iar|ori|sau|og|men|for|som)\b)/i)
+      .map((x) => x.trim())
+      .filter(Boolean);
 
-    if (current.length >= 2) {
-      chunks.push(current.join(' ').trim());
-      current = [];
+    if (softerParts.length === 1) {
+      const words = sentence.split(/\s+/).filter(Boolean);
+      let current = [];
+
+      for (const word of words) {
+        current.push(word);
+        if (current.length >= 10) {
+          smallPieces.push(current.join(' ').trim());
+          current = [];
+        }
+      }
+
+      if (current.length) {
+        smallPieces.push(current.join(' ').trim());
+      }
+
+      continue;
+    }
+
+    let current = '';
+
+    for (const part of softerParts) {
+      const candidate = current ? `${current} ${part}` : part;
+
+      if (countWords(candidate) <= 12 && candidate.length <= 120) {
+        current = candidate;
+      } else {
+        if (current) smallPieces.push(current.trim());
+        current = part;
+      }
+    }
+
+    if (current) {
+      smallPieces.push(current.trim());
     }
   }
 
-  if (current.length) {
-    chunks.push(current.join(' ').trim());
+  const chunks = [];
+  let currentChunk = [];
+  let currentWords = 0;
+
+  for (const piece of smallPieces) {
+    const pieceWords = countWords(piece);
+    const nextWords = currentWords + pieceWords;
+
+    if (currentChunk.length >= 2 || nextWords > 16) {
+      if (currentChunk.length) {
+        chunks.push(currentChunk.join(' ').trim());
+      }
+      currentChunk = [piece];
+      currentWords = pieceWords;
+      continue;
+    }
+
+    currentChunk.push(piece);
+    currentWords = nextWords;
+  }
+
+  if (currentChunk.length) {
+    chunks.push(currentChunk.join(' ').trim());
   }
 
   return chunks.filter(Boolean);
@@ -214,8 +270,8 @@ function shouldFlushBufferedText(text) {
   const words = countWords(clean);
   const last = getLastWord(clean);
 
-  if (words >= 8 && !BUFFER_CONNECTORS.has(last)) return true;
-  if (words >= 12) return true;
+  if (words >= 6 && !BUFFER_CONNECTORS.has(last)) return true;
+  if (words >= 9) return true;
 
   return false;
 }
@@ -527,18 +583,18 @@ async function flushSpeechBuffer(eventId, force = false) {
   const last = getLastWord(text);
 
   if (!force) {
-    if (startsLikeContinuation(text) && words < 12) {
+    if (startsLikeContinuation(text) && words < 10) {
       buffered.timer = setTimeout(() => {
         flushSpeechBuffer(eventId, true).catch(console.error);
-      }, 1400);
+      }, 700);
       speechBuffers.set(eventId, buffered);
       return null;
     }
 
-    if (BUFFER_CONNECTORS.has(last) && words < 12) {
+    if (BUFFER_CONNECTORS.has(last) && words < 10) {
       buffered.timer = setTimeout(() => {
         flushSpeechBuffer(eventId, true).catch(console.error);
-      }, 1400);
+      }, 700);
       speechBuffers.set(eventId, buffered);
       return null;
     }
@@ -583,14 +639,92 @@ function queueSpeechText(eventId, text) {
     return;
   }
 
-  if (ageMs > 4200 || words >= 14) {
+  if (ageMs > 2800 || words >= 10) {
     flushSpeechBuffer(eventId, true).catch(console.error);
     return;
   }
 
   next.timer = setTimeout(() => {
     flushSpeechBuffer(eventId, true).catch(console.error);
-  }, 1400);
+  }, 700);
+}
+
+function getEventPresence(eventId) {
+  if (!participantPresence.has(eventId)) {
+    participantPresence.set(eventId, new Map());
+  }
+  return participantPresence.get(eventId);
+}
+
+function buildParticipantStats(eventId) {
+  const presence = getEventPresence(eventId);
+  const uniqueParticipants = Array.from(presence.values());
+
+  const byLanguage = {};
+  for (const participant of uniqueParticipants) {
+    const lang = participant.language || 'unknown';
+    byLanguage[lang] = (byLanguage[lang] || 0) + 1;
+  }
+
+  return {
+    uniqueCount: uniqueParticipants.length,
+    total: uniqueParticipants.length,
+    byLanguage,
+    languages: Object.entries(byLanguage)
+      .map(([lang, count]) => ({ lang, count }))
+      .sort((a, b) => b.count - a.count)
+  };
+}
+
+function emitParticipantStats(eventId) {
+  if (!eventId) return;
+  io.to(`event:${eventId}:admins`).emit('participant_stats', buildParticipantStats(eventId));
+}
+
+function registerParticipantSocket(eventId, participantId, language, socketId) {
+  if (!eventId || !participantId || !socketId) return;
+
+  const presence = getEventPresence(eventId);
+
+  if (!presence.has(participantId)) {
+    presence.set(participantId, {
+      participantId,
+      language: language || 'no',
+      socketIds: new Set()
+    });
+  }
+
+  const person = presence.get(participantId);
+  person.language = language || person.language || 'no';
+  person.socketIds.add(socketId);
+}
+
+function unregisterParticipantSocket(eventId, participantId, socketId) {
+  if (!eventId || !participantId || !socketId) return;
+
+  const presence = getEventPresence(eventId);
+  const person = presence.get(participantId);
+  if (!person) return;
+
+  person.socketIds.delete(socketId);
+
+  if (person.socketIds.size === 0) {
+    presence.delete(participantId);
+  }
+
+  if (presence.size === 0) {
+    participantPresence.delete(eventId);
+  }
+}
+
+function cleanupSocketPresence(socket) {
+  const eventId = socket.data?.eventId;
+  const participantId = socket.data?.participantId;
+
+  if (socket.data?.role === 'participant' && eventId && participantId) {
+    unregisterParticipantSocket(eventId, participantId, socket.id);
+    emitParticipantStats(eventId);
+  }
 }
 
 app.get('/api/health', (req, res) => {
@@ -687,6 +821,7 @@ app.delete('/api/events/:id', (req, res) => {
 
   delete db.events[req.params.id];
   speechBuffers.delete(req.params.id);
+  participantPresence.delete(req.params.id);
 
   if (db.activeEventId === req.params.id) {
     const remaining = Object.values(db.events).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
@@ -831,7 +966,7 @@ app.post('/api/events/:id/transcribe', upload.single('audio'), async (req, res) 
 });
 
 io.on('connection', (socket) => {
-  socket.on('join_event', ({ eventId, role, code, language }) => {
+  socket.on('join_event', ({ eventId, role, code, language, participantId }) => {
     const event = db.events[eventId];
     if (!event) {
       return socket.emit('join_error', { message: 'Evenimentul nu există.' });
@@ -841,9 +976,12 @@ io.on('connection', (socket) => {
       return socket.emit('join_error', { message: 'Cod Admin invalid.' });
     }
 
+    cleanupSocketPresence(socket);
+
     socket.data.eventId = eventId;
     socket.data.role = role || 'participant';
     socket.data.language = language || event.targetLangs[0] || 'no';
+    socket.data.participantId = participantId || '';
 
     socket.join(`event:${eventId}`);
 
@@ -855,6 +993,15 @@ io.on('connection', (socket) => {
       socket.join(`event:${eventId}:lang:${socket.data.language}`);
     }
 
+    if (socket.data.role === 'participant' && socket.data.participantId) {
+      registerParticipantSocket(eventId, socket.data.participantId, socket.data.language, socket.id);
+      emitParticipantStats(eventId);
+    }
+
+    if (socket.data.role === 'admin') {
+      emitParticipantStats(eventId);
+    }
+
     socket.emit('joined_event', {
       ok: true,
       role: socket.data.role,
@@ -864,12 +1011,23 @@ io.on('connection', (socket) => {
   });
 
   socket.on('participant_language', ({ eventId, language }) => {
+    const targetEventId = eventId || socket.data.eventId;
     const oldLanguage = socket.data.language;
-    if (oldLanguage) {
-      socket.leave(`event:${eventId}:lang:${oldLanguage}`);
+
+    if (oldLanguage && targetEventId) {
+      socket.leave(`event:${targetEventId}:lang:${oldLanguage}`);
     }
+
     socket.data.language = language;
-    socket.join(`event:${eventId}:lang:${language}`);
+
+    if (targetEventId) {
+      socket.join(`event:${targetEventId}:lang:${language}`);
+    }
+
+    if (socket.data.role === 'participant' && socket.data.participantId && targetEventId) {
+      registerParticipantSocket(targetEventId, socket.data.participantId, language, socket.id);
+      emitParticipantStats(targetEventId);
+    }
   });
 
   socket.on('submit_text', async ({ eventId, text }) => {
@@ -938,6 +1096,10 @@ io.on('connection', (socket) => {
       audioMuted: event.audioMuted,
       audioVolume: event.audioVolume
     });
+  });
+
+  socket.on('disconnect', () => {
+    cleanupSocketPresence(socket);
   });
 });
 
