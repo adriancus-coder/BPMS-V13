@@ -685,6 +685,17 @@ progress {
   padding: 14px 16px;
 }
 
+.participant-live-only-panel {
+  padding: 18px 20px;
+  min-height: 280px;
+}
+
+.participant-live-only-text.last-highlight {
+  font-size: 26px;
+  line-height: 1.65;
+  padding: 24px 26px;
+}
+
 .participant-updating {
   margin-bottom: 10px;
   background: #4a1218;
@@ -798,13 +809,18 @@ progress {
 
   .working-zone .history-text,
   .participant-wrap .history-item.live-current .history-text,
-  .participant-wrap .history-item .history-text {
+  .participant-wrap .history-item .history-text,
+  .participant-live-only-text.last-highlight {
     font-size: 20px;
     line-height: 1.55;
   }
 
   .participant-history-scroll {
     max-height: 66vh;
+  }
+
+  .participant-live-only-text.last-highlight {
+    padding: 18px;
   }
 }
 
