@@ -16,6 +16,7 @@ let audioState = {
   context: null,
   source: null,
   gainNode: null,
+  preampNode: null,
   analyser: null,
   destination: null,
   meterFrame: null,
@@ -717,6 +718,7 @@ async function destroyAudioPipeline() {
   audioState.context = null;
   audioState.source = null;
   audioState.gainNode = null;
+  audioState.preampNode = null;
   audioState.analyser = null;
   audioState.monitorGainNode = null;
   audioState.monitorEnabled = false;
@@ -728,31 +730,39 @@ async function destroyAudioPipeline() {
   setOnAirState(false);
 }
 
+function sliderToGain(value) {
+  const v = Math.max(0, Number(value || 100));
+  return Math.pow(v / 100, 2);
+}
+
 function updateInputGain() {
   const range = $('inputGainRange');
   const label = $('inputGainLabel');
   if (!range || !label) return;
 
   const value = Number(range.value || 100);
-  label.textContent = `${value}%`;
+  const gain = sliderToGain(value);
 
-  if (audioState.gainNode) {
-    audioState.gainNode.gain.value = value / 100;
+  label.textContent = `${value}% · ${gain.toFixed(1)}x`;
+
+  if (audioState.preampNode) {
+    audioState.preampNode.gain.value = gain;
   }
 }
 
 function updateMonitorGain() {
   const enabled = !!$('monitorAudioBox')?.checked;
   const value = Number($('monitorGainRange')?.value || 0);
+  const gain = enabled ? sliderToGain(value) : 0;
 
   if ($('monitorGainLabel')) {
-    $('monitorGainLabel').textContent = `${value}%`;
+    $('monitorGainLabel').textContent = `${value}% · ${gain.toFixed(1)}x`;
   }
 
   audioState.monitorEnabled = enabled;
 
   if (audioState.monitorGainNode) {
-    audioState.monitorGainNode.gain.value = enabled ? (value / 100) : 0;
+    audioState.monitorGainNode.gain.value = gain;
   }
 }
 
@@ -773,19 +783,19 @@ function startMeterLoop() {
     }
 
     const rms = Math.sqrt(sumSquares / data.length);
-    const level = Math.min(
-      100,
-      Math.round(rms * 180 * (Number($('inputGainRange')?.value || 100) / 100))
-    );
+    const db = 20 * Math.log10(Math.max(rms, 0.00001));
+    const level = Math.max(0, Math.min(100, Math.round(((db + 60) / 60) * 100)));
 
     if ($('audioLevel')) $('audioLevel').value = level;
 
-    if (level < 5) {
+    if (level < 8) {
       setStatus(audioState.running ? 'Fără semnal sau semnal foarte slab.' : 'Alege sursa și pornește traducerea.');
-    } else if (level < 70) {
+    } else if (level < 65) {
       setStatus(audioState.running ? 'Traduce din sursa selectată.' : 'Semnal audio OK.');
+    } else if (level < 90) {
+      setStatus(audioState.running ? 'Traduce. Semnal bun.' : 'Semnal bun.');
     } else {
-      setStatus(audioState.running ? 'Traduce. Semnal puternic.' : 'Semnal puternic. Verifică gain-ul.');
+      setStatus(audioState.running ? 'Traduce. Semnal foarte puternic.' : 'Semnal foarte puternic.');
     }
 
     audioState.meterFrame = requestAnimationFrame(draw);
@@ -802,11 +812,21 @@ async function createAudioPipeline() {
     audio: deviceId
       ? {
           deviceId: { exact: deviceId },
+          channelCount: 2,
+          sampleRate: 48000,
+          sampleSize: 16,
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false
         }
-      : true
+      : {
+          channelCount: 2,
+          sampleRate: 48000,
+          sampleSize: 16,
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        }
   });
 
   audioState.context = new (window.AudioContext || window.webkitAudioContext)();
@@ -814,18 +834,24 @@ async function createAudioPipeline() {
 
   audioState.source = audioState.context.createMediaStreamSource(audioState.stream);
   audioState.gainNode = audioState.context.createGain();
+  audioState.preampNode = audioState.context.createGain();
   audioState.analyser = audioState.context.createAnalyser();
-  audioState.analyser.fftSize = 1024;
+  audioState.analyser.fftSize = 2048;
   audioState.destination = audioState.context.createMediaStreamDestination();
 
   audioState.source.connect(audioState.gainNode);
-  audioState.gainNode.connect(audioState.analyser);
-  audioState.gainNode.connect(audioState.destination);
+  audioState.gainNode.connect(audioState.preampNode);
+  audioState.preampNode.connect(audioState.analyser);
+  audioState.preampNode.connect(audioState.destination);
 
   audioState.monitorGainNode = audioState.context.createGain();
   audioState.monitorGainNode.gain.value = 0;
-  audioState.gainNode.connect(audioState.monitorGainNode);
+  audioState.preampNode.connect(audioState.monitorGainNode);
   audioState.monitorGainNode.connect(audioState.context.destination);
+
+  if (audioState.gainNode) {
+    audioState.gainNode.gain.value = 1;
+  }
 
   updateInputGain();
   updateMonitorGain();
