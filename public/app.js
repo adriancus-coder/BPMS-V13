@@ -44,7 +44,8 @@ function selectedLangs() {
 }
 
 function setStatus(text) {
-  $('recognitionStatus').textContent = text;
+  const el = $('recognitionStatus');
+  if (el) el.textContent = text;
 }
 
 function setOnAirState(isOn) {
@@ -156,17 +157,63 @@ function renderActiveEventBadge(event) {
   }
 }
 
+function renderParticipantStats(stats = {}) {
+  const summaryEl = $('participantStatsSummary');
+  const listEl = $('participantStatsList');
+  const singleLineEl = $('participantStats');
+
+  const uniqueCount = Number(stats.uniqueCount || stats.total || 0);
+  const languages = Array.isArray(stats.languages)
+    ? stats.languages
+    : Object.entries(stats.byLanguage || {}).map(([lang, count]) => ({ lang, count }));
+
+  const sorted = [...languages].sort((a, b) => Number(b.count || 0) - Number(a.count || 0));
+  const inlineText = sorted
+    .map((item) => `${langNames[item.lang] || String(item.lang).toUpperCase()}: ${item.count}`)
+    .join(' · ');
+
+  if (summaryEl) {
+    summaryEl.textContent = uniqueCount === 1 ? '1 participant unic' : `${uniqueCount} participanți unici`;
+  }
+
+  if (listEl) {
+    if (!sorted.length) {
+      listEl.innerHTML = '<div class="small">Niciun participant conectat.</div>';
+    } else {
+      listEl.innerHTML = sorted
+        .map((item) => {
+          const label = langNames[item.lang] || String(item.lang).toUpperCase();
+          return `<div class="history-item">${escapeHtml(label)}: ${item.count}</div>`;
+        })
+        .join('');
+    }
+  }
+
+  if (singleLineEl) {
+    singleLineEl.textContent = inlineText
+      ? `Participanți unici: ${uniqueCount} · ${inlineText}`
+      : `Participanți unici: ${uniqueCount}`;
+  }
+}
+
+function resetParticipantStats() {
+  renderParticipantStats({ uniqueCount: 0, languages: [] });
+}
+
 function getEntryById(entryId) {
   return (currentEvent?.transcripts || []).find((x) => x.id === entryId) || null;
 }
 
 function fillGlossaryLangs(targetLangs = []) {
-  $('glossaryLang').innerHTML = '';
+  const select = $('glossaryLang');
+  if (!select) return;
+
+  select.innerHTML = '';
   targetLangs.forEach((lang) => {
     const opt = document.createElement('option');
     opt.value = lang;
     opt.textContent = langNames[lang] || lang.toUpperCase();
-    $('glossaryLang').appendChild(opt);
+    select.appendChild(opt);
   });
 }
 
@@ -208,7 +255,7 @@ function shareWhatsApp(id) {
 }
 
 async function copyQrImage() {
-  const src = $('qrImage').src;
+  const src = $('qrImage')?.src;
   if (!src) return;
 
   try {
@@ -226,7 +273,7 @@ async function copyQrImage() {
 }
 
 function downloadQr() {
-  const src = $('qrImage').src;
+  const src = $('qrImage')?.src;
   if (!src) return;
   const a = document.createElement('a');
   a.href = src;
@@ -235,8 +282,8 @@ function downloadQr() {
 }
 
 function buildScheduledAt() {
-  const date = $('eventDate').value;
-  const time = $('eventTime').value;
+  const date = $('eventDate')?.value;
+  const time = $('eventTime')?.value;
   if (!date) return null;
   return time ? `${date}T${time}:00` : `${date}T00:00:00`;
 }
@@ -282,6 +329,9 @@ function closeInlineEditors() {
 }
 
 function renderEntry(entry) {
+  const list = $('transcriptList');
+  if (!list) return;
+
   const div = document.createElement('div');
   div.className = 'entry';
   div.dataset.entryId = entry.id;
@@ -345,7 +395,7 @@ function renderEntry(entry) {
     }
   });
 
-  $('transcriptList').prepend(div);
+  list.prepend(div);
 }
 
 function updateEntry({ entryId, lang, text }) {
@@ -492,14 +542,14 @@ async function openEventById(eventId) {
     if (!data.ok) return;
 
     currentEvent = data.event;
-    $('adminCode').textContent = currentEvent.adminCode;
-    $('participantLink').value = currentEvent.participantLink;
-    $('qrImage').src = currentEvent.qrCodeDataUrl;
-    $('speed').value = currentEvent.speed || 'balanced';
+    if ($('adminCode')) $('adminCode').textContent = currentEvent.adminCode;
+    if ($('participantLink')) $('participantLink').value = currentEvent.participantLink;
+    if ($('qrImage')) $('qrImage').src = currentEvent.qrCodeDataUrl;
+    if ($('speed')) $('speed').value = currentEvent.speed || 'balanced';
     currentVolume = currentEvent.audioVolume;
     currentMuted = currentEvent.audioMuted;
-    $('volumeRange').value = String(currentVolume);
-    $('transcriptList').innerHTML = '';
+    if ($('volumeRange')) $('volumeRange').value = String(currentVolume);
+    if ($('transcriptList')) $('transcriptList').innerHTML = '';
     (currentEvent.transcripts || []).forEach(renderEntry);
     fillGlossaryLangs(currentEvent.targetLangs || []);
     renderActiveEventBadge(currentEvent);
@@ -524,8 +574,8 @@ async function openEventById(eventId) {
 }
 
 async function createEvent() {
-  const name = $('eventName').value.trim() || 'Eveniment nou';
-  const sourceLang = $('sourceLang').value;
+  const name = $('eventName')?.value.trim() || 'Eveniment nou';
+  const sourceLang = $('sourceLang')?.value;
   const targetLangs = selectedLangs();
   const scheduledAt = buildScheduledAt();
 
@@ -542,7 +592,13 @@ async function createEvent() {
   const res = await fetch('/api/events', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, speed: $('speed').value || 'balanced', sourceLang, targetLangs, scheduledAt })
+    body: JSON.stringify({
+      name,
+      speed: $('speed')?.value || 'balanced',
+      sourceLang,
+      targetLangs,
+      scheduledAt
+    })
   });
 
   const data = await res.json();
@@ -552,15 +608,15 @@ async function createEvent() {
   }
 
   currentEvent = data.event;
-  $('adminCode').textContent = currentEvent.adminCode;
-  $('participantLink').value = currentEvent.participantLink;
-  $('qrImage').src = currentEvent.qrCodeDataUrl;
-  $('speed').value = currentEvent.speed || 'balanced';
+  if ($('adminCode')) $('adminCode').textContent = currentEvent.adminCode;
+  if ($('participantLink')) $('participantLink').value = currentEvent.participantLink;
+  if ($('qrImage')) $('qrImage').src = currentEvent.qrCodeDataUrl;
+  if ($('speed')) $('speed').value = currentEvent.speed || 'balanced';
   renderActiveEventBadge(currentEvent);
   currentVolume = currentEvent.audioVolume;
   currentMuted = currentEvent.audioMuted;
-  $('volumeRange').value = String(currentVolume);
-  $('transcriptList').innerHTML = '';
+  if ($('volumeRange')) $('volumeRange').value = String(currentVolume);
+  if ($('transcriptList')) $('transcriptList').innerHTML = '';
   fillGlossaryLangs(currentEvent.targetLangs || []);
   closeInlineEditors();
 
@@ -591,13 +647,15 @@ async function setActiveEvent() {
 
   currentEvent = data.event;
   renderActiveEventBadge(currentEvent);
-  $('participantLink').value = currentEvent.participantLink;
-  $('qrImage').src = currentEvent.qrCodeDataUrl;
+  if ($('participantLink')) $('participantLink').value = currentEvent.participantLink;
+  if ($('qrImage')) $('qrImage').src = currentEvent.qrCodeDataUrl;
   setStatus('Evenimentul public a fost actualizat.');
 }
 
 async function loadAudioInputs(keepValue = true) {
   const select = $('audioInput');
+  if (!select) return;
+
   const previous = keepValue ? select.value : '';
   select.innerHTML = '';
 
@@ -666,13 +724,18 @@ async function destroyAudioPipeline() {
   audioState.busy = false;
   audioState.uploadQueue = [];
 
-  $('audioLevel').value = 0;
+  if ($('audioLevel')) $('audioLevel').value = 0;
   setOnAirState(false);
 }
 
 function updateInputGain() {
-  const value = Number($('inputGainRange').value || 100);
-  $('inputGainLabel').textContent = `${value}%`;
+  const range = $('inputGainRange');
+  const label = $('inputGainLabel');
+  if (!range || !label) return;
+
+  const value = Number(range.value || 100);
+  label.textContent = `${value}%`;
+
   if (audioState.gainNode) {
     audioState.gainNode.gain.value = value / 100;
   }
@@ -710,8 +773,12 @@ function startMeterLoop() {
     }
 
     const rms = Math.sqrt(sumSquares / data.length);
-    const level = Math.min(100, Math.round(rms * 180 * (Number($('inputGainRange').value || 100) / 100)));
-    $('audioLevel').value = level;
+    const level = Math.min(
+      100,
+      Math.round(rms * 180 * (Number($('inputGainRange')?.value || 100) / 100))
+    );
+
+    if ($('audioLevel')) $('audioLevel').value = level;
 
     if (level < 5) {
       setStatus(audioState.running ? 'Fără semnal sau semnal foarte slab.' : 'Alege sursa și pornește traducerea.');
@@ -728,7 +795,7 @@ function startMeterLoop() {
 }
 
 async function createAudioPipeline() {
-  const deviceId = $('audioInput').value;
+  const deviceId = $('audioInput')?.value;
   await destroyAudioPipeline();
 
   audioState.stream = await navigator.mediaDevices.getUserMedia({
@@ -884,7 +951,7 @@ async function startTranslation() {
       if (audioState.recorder && audioState.recorder.state === 'recording') {
         audioState.recorder.stop();
       }
-    }, 8500);
+    }, 3800);
   };
 
   startRecorderCycle();
@@ -918,24 +985,28 @@ async function stopTranslation() {
 function sendManualText() {
   if (!currentEvent) return alert('Alege sau creează întâi un eveniment.');
 
-  const text = $('manualText').value.trim();
+  const text = $('manualText')?.value.trim();
   if (!text) return;
 
   socket.emit('submit_text', { eventId: currentEvent.id, text });
-  $('manualText').value = '';
+  if ($('manualText')) $('manualText').value = '';
   lastManualEnterAt = 0;
 }
 
-socket.on('joined_event', ({ event }) => {
+socket.on('joined_event', ({ event, role }) => {
+  if (role !== 'admin') return;
+
   currentEvent = event;
-  $('speed').value = event.speed || 'balanced';
+  if ($('speed')) $('speed').value = event.speed || 'balanced';
   currentVolume = event.audioVolume;
   currentMuted = event.audioMuted;
 
-  $('volumeRange').value = String(currentVolume);
-  $('audioStateLabel').textContent = currentMuted ? 'Audio global oprit.' : 'Audio global activ.';
-  $('transcriptList').innerHTML = '';
+  if ($('volumeRange')) $('volumeRange').value = String(currentVolume);
+  if ($('audioStateLabel')) {
+    $('audioStateLabel').textContent = currentMuted ? 'Audio global oprit.' : 'Audio global activ.';
+  }
 
+  if ($('transcriptList')) $('transcriptList').innerHTML = '';
   (event.transcripts || []).forEach(renderEntry);
   fillGlossaryLangs(currentEvent.targetLangs || []);
   renderActiveEventBadge(currentEvent);
@@ -951,7 +1022,11 @@ socket.on('transcript_entry', (entry) => {
   if (!currentEvent) return;
 
   currentEvent.transcripts = currentEvent.transcripts || [];
-  currentEvent.transcripts.push(entry);
+  const exists = getEntryById(entry.id);
+  if (!exists) {
+    currentEvent.transcripts.push(entry);
+  }
+
   renderEntry(entry);
 
   if ($('partialTranscript')) {
@@ -971,8 +1046,10 @@ socket.on('transcript_source_updated', (payload) => {
 socket.on('audio_state', ({ audioMuted, audioVolume }) => {
   currentMuted = audioMuted;
   currentVolume = audioVolume;
-  $('volumeRange').value = String(audioVolume);
-  $('audioStateLabel').textContent = audioMuted ? 'Audio global oprit.' : 'Audio global activ.';
+  if ($('volumeRange')) $('volumeRange').value = String(audioVolume);
+  if ($('audioStateLabel')) {
+    $('audioStateLabel').textContent = audioMuted ? 'Audio global oprit.' : 'Audio global activ.';
+  }
 });
 
 socket.on('partial_transcript', ({ text }) => {
@@ -980,6 +1057,8 @@ socket.on('partial_transcript', ({ text }) => {
     $('partialTranscript').textContent = text || 'Aștept propoziția completă...';
   }
 });
+
+socket.on('participant_stats', renderParticipantStats);
 
 socket.on('server_error', ({ message }) => {
   setStatus(message || 'Eroare server.');
@@ -998,16 +1077,18 @@ socket.on('active_event_changed', async ({ eventId }) => {
     const data = await res.json();
     if (data.ok && data.event) {
       await openEventById(data.event.id);
+    } else {
+      resetParticipantStats();
     }
   } catch (_) {}
 });
 
-$('createEventBtn').addEventListener('click', createEvent);
-$('sendManualBtn').addEventListener('click', sendManualText);
-$('speed').addEventListener('change', syncSpeedToEvent);
-$('openTranscriptTabBtn').addEventListener('click', () => switchTab('transcript'));
+$('createEventBtn')?.addEventListener('click', createEvent);
+$('sendManualBtn')?.addEventListener('click', sendManualText);
+$('speed')?.addEventListener('change', syncSpeedToEvent);
+$('openTranscriptTabBtn')?.addEventListener('click', () => switchTab('transcript'));
 
-$('manualText').addEventListener('keydown', (e) => {
+$('manualText')?.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || e.shiftKey) return;
 
   const now = Date.now();
@@ -1021,13 +1102,13 @@ $('manualText').addEventListener('keydown', (e) => {
   lastManualEnterAt = now;
 });
 
-$('saveGlossaryBtn').addEventListener('click', async () => {
+$('saveGlossaryBtn')?.addEventListener('click', async () => {
   if (!currentEvent) return alert('Alege sau creează întâi un eveniment.');
 
-  const source = $('glossarySource').value.trim();
-  const target = $('glossaryTarget').value.trim();
-  const lang = $('glossaryLang').value;
-  const permanent = $('glossaryPermanent').checked;
+  const source = $('glossarySource')?.value.trim();
+  const target = $('glossaryTarget')?.value.trim();
+  const lang = $('glossaryLang')?.value;
+  const permanent = !!$('glossaryPermanent')?.checked;
   if (!source || !target) return;
 
   const res = await fetch(`/api/events/${currentEvent.id}/glossary`, {
@@ -1038,18 +1119,18 @@ $('saveGlossaryBtn').addEventListener('click', async () => {
 
   const data = await res.json();
   if (data.ok) {
-    $('glossarySource').value = '';
-    $('glossaryTarget').value = '';
+    if ($('glossarySource')) $('glossarySource').value = '';
+    if ($('glossaryTarget')) $('glossaryTarget').value = '';
     setStatus('Traducerea a fost salvată în glosar.');
   }
 });
 
-$('saveSourceCorrectionBtn').addEventListener('click', async () => {
+$('saveSourceCorrectionBtn')?.addEventListener('click', async () => {
   if (!currentEvent) return alert('Alege sau creează întâi un eveniment.');
 
-  const heard = $('sourceWrong').value.trim();
-  const correct = $('sourceCorrect').value.trim();
-  const permanent = $('sourceCorrectionPermanent').checked;
+  const heard = $('sourceWrong')?.value.trim();
+  const correct = $('sourceCorrect')?.value.trim();
+  const permanent = !!$('sourceCorrectionPermanent')?.checked;
 
   if (!heard || !correct) return;
 
@@ -1061,15 +1142,15 @@ $('saveSourceCorrectionBtn').addEventListener('click', async () => {
 
   const data = await res.json();
   if (data.ok) {
-    $('sourceWrong').value = '';
-    $('sourceCorrect').value = '';
+    if ($('sourceWrong')) $('sourceWrong').value = '';
+    if ($('sourceCorrect')) $('sourceCorrect').value = '';
     setStatus('Corecția de recunoaștere a fost salvată.');
   }
 });
 
 $('glossaryMode')?.addEventListener('change', updateGlossaryMode);
 
-$('muteGlobalBtn').addEventListener('click', () => {
+$('muteGlobalBtn')?.addEventListener('click', () => {
   if (!currentEvent) return;
 
   currentMuted = !currentMuted;
@@ -1081,12 +1162,12 @@ $('muteGlobalBtn').addEventListener('click', () => {
   });
 });
 
-$('panicBtn').addEventListener('click', () => {
+$('panicBtn')?.addEventListener('click', () => {
   if (!currentEvent) return;
 
   currentMuted = true;
   currentVolume = 0;
-  $('volumeRange').value = '0';
+  if ($('volumeRange')) $('volumeRange').value = '0';
 
   socket.emit('set_audio_state', {
     eventId: currentEvent.id,
@@ -1096,8 +1177,8 @@ $('panicBtn').addEventListener('click', () => {
   });
 });
 
-$('volumeRange').addEventListener('input', () => {
-  currentVolume = Number($('volumeRange').value || 70);
+$('volumeRange')?.addEventListener('input', () => {
+  currentVolume = Number($('volumeRange')?.value || 70);
   if (!currentEvent) return;
 
   socket.emit('set_audio_state', {
@@ -1108,11 +1189,11 @@ $('volumeRange').addEventListener('input', () => {
   });
 });
 
-$('inputGainRange').addEventListener('input', updateInputGain);
+$('inputGainRange')?.addEventListener('input', updateInputGain);
 $('monitorAudioBox')?.addEventListener('change', updateMonitorGain);
 $('monitorGainRange')?.addEventListener('input', updateMonitorGain);
 
-$('audioInput').addEventListener('change', async () => {
+$('audioInput')?.addEventListener('change', async () => {
   if (audioState.running) {
     await startTranslation();
   } else {
@@ -1126,16 +1207,16 @@ $('audioInput').addEventListener('change', async () => {
   }
 });
 
-$('startRecognitionBtn').addEventListener('click', startTranslation);
-$('stopRecognitionBtn').addEventListener('click', stopTranslation);
-$('copyParticipantBtn').addEventListener('click', () => copyField('participantLink', 'copyParticipantBtn'));
-$('shareParticipantBtn').addEventListener('click', () => shareWhatsApp('participantLink'));
-$('copyQrBtn').addEventListener('click', copyQrImage);
-$('downloadQrBtn').addEventListener('click', downloadQr);
-$('setActiveEventBtn').addEventListener('click', setActiveEvent);
-$('refreshEventsBtn').addEventListener('click', refreshEventList);
+$('startRecognitionBtn')?.addEventListener('click', startTranslation);
+$('stopRecognitionBtn')?.addEventListener('click', stopTranslation);
+$('copyParticipantBtn')?.addEventListener('click', () => copyField('participantLink', 'copyParticipantBtn'));
+$('shareParticipantBtn')?.addEventListener('click', () => shareWhatsApp('participantLink'));
+$('copyQrBtn')?.addEventListener('click', copyQrImage);
+$('downloadQrBtn')?.addEventListener('click', downloadQr);
+$('setActiveEventBtn')?.addEventListener('click', setActiveEvent);
+$('refreshEventsBtn')?.addEventListener('click', refreshEventList);
 
-$('jumpLiveBtn').addEventListener('click', () => {
+$('jumpLiveBtn')?.addEventListener('click', () => {
   sourceEditLock = false;
   closeInlineEditors();
   switchTab('transcript');
@@ -1145,7 +1226,7 @@ $('jumpLiveBtn').addEventListener('click', () => {
   }
 });
 
-$('eventList').addEventListener('click', async (e) => {
+$('eventList')?.addEventListener('click', async (e) => {
   const btn = e.target.closest('button[data-action]');
   if (!btn) return;
 
@@ -1182,11 +1263,13 @@ $('eventList').addEventListener('click', async (e) => {
     if (data.ok) {
       if (currentEvent?.id === id) {
         currentEvent = null;
-        $('adminCode').textContent = '-';
-        $('participantLink').value = '';
-        $('qrImage').src = '';
-        $('transcriptList').innerHTML = '';
+        if ($('adminCode')) $('adminCode').textContent = '-';
+        if ($('participantLink')) $('participantLink').value = '';
+        if ($('qrImage')) $('qrImage').src = '';
+        if ($('transcriptList')) $('transcriptList').innerHTML = '';
         renderActiveEventBadge(null);
+        resetParticipantStats();
+
         if ($('partialTranscript')) {
           $('partialTranscript').textContent = 'Aștept propoziția completă...';
         }
@@ -1210,8 +1293,10 @@ window.addEventListener('beforeunload', async () => {
 
 window.addEventListener('load', async () => {
   const now = new Date();
-  $('eventDate').value = now.toISOString().slice(0, 10);
-  $('eventTime').value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  if ($('eventDate')) $('eventDate').value = now.toISOString().slice(0, 10);
+  if ($('eventTime')) {
+    $('eventTime').value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  }
 
   try {
     await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1223,6 +1308,7 @@ window.addEventListener('load', async () => {
   updateInputGain();
   updateMonitorGain();
   setOnAirState(false);
+  resetParticipantStats();
   await refreshEventList();
 
   try {
