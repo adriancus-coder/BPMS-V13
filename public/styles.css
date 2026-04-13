@@ -685,6 +685,10 @@ progress {
   padding: 14px 16px;
 }
 
+.participant-live-with-history-panel {
+  padding: 18px 20px;
+}
+
 .participant-live-only-panel {
   padding: 18px 20px;
   min-height: 280px;
@@ -694,6 +698,37 @@ progress {
   font-size: 26px;
   line-height: 1.65;
   padding: 24px 26px;
+}
+
+.participant-history-title {
+  margin-top: 18px;
+}
+
+.participant-recent-history {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 46vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.participant-history-item {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.participant-history-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.participant-history-item .history-text {
+  font-size: 20px;
+  line-height: 1.55;
+  color: #eef4ff;
+  opacity: 0.95;
 }
 
 .participant-updating {
@@ -815,12 +850,21 @@ progress {
     line-height: 1.55;
   }
 
+  .participant-history-item .history-text {
+    font-size: 18px;
+    line-height: 1.5;
+  }
+
   .participant-history-scroll {
     max-height: 66vh;
   }
 
   .participant-live-only-text.last-highlight {
     padding: 18px;
+  }
+
+  .participant-recent-history {
+    max-height: 40vh;
   }
 }
 
