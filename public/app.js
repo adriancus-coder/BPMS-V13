@@ -943,44 +943,23 @@ async function startTranslation() {
   setOnAirState(true);
   await enableScreenWakeLock();
 
-  const startRecorderCycle = () => {
+  audioState.recorder = new MediaRecorder(audioState.destination.stream, {
+    mimeType,
+    audioBitsPerSecond: 128000
+  });
+
+  audioState.recorder.ondataavailable = (event) => {
     if (!audioState.running) return;
-
-    audioState.chunks = [];
-    audioState.recorder = new MediaRecorder(audioState.destination.stream, {
-      mimeType,
-      audioBitsPerSecond: 128000
-    });
-
-    audioState.recorder.ondataavailable = (event) => {
-      if (event.data && event.data.size > 0) {
-        audioState.chunks.push(event.data);
-      }
-    };
-
-    audioState.recorder.onstop = () => {
-      const blob = new Blob(audioState.chunks, { type: 'audio/webm' });
-      audioState.chunks = [];
-
-      if (audioState.running) {
-        startRecorderCycle();
-      }
-
-      if (blob.size >= 3500) {
-        enqueueAudioBlob(blob);
-      }
-    };
-
-    audioState.recorder.start();
-
-    audioState.chunkTimer = setTimeout(() => {
-      if (audioState.recorder && audioState.recorder.state === 'recording') {
-        audioState.recorder.stop();
-      }
-    }, 3800);
+    if (event.data && event.data.size >= 3500) {
+      enqueueAudioBlob(event.data);
+    }
   };
 
-  startRecorderCycle();
+  audioState.recorder.onstop = () => {
+    audioState.recorder = null;
+  };
+
+  audioState.recorder.start(4500);
   setStatus('On-Air. Traduce din sursa selectată.');
 }
 
@@ -1000,7 +979,7 @@ async function stopTranslation() {
     audioState.recorder.stop();
     setTimeout(() => {
       destroyAudioPipeline().catch(console.error);
-    }, 50);
+    }, 100);
     return;
   }
 
