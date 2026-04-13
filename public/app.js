@@ -863,12 +863,29 @@ function chooseRecorderMimeType() {
   return candidates.find((type) => window.MediaRecorder?.isTypeSupported?.(type)) || '';
 }
 
+function getAudioFileInfo(mimeType) {
+  const type = String(mimeType || '').toLowerCase();
+
+  if (type.includes('wav')) {
+    return { mimeType: 'audio/wav', ext: 'wav' };
+  }
+
+  if (type.includes('mp4') || type.includes('m4a')) {
+    return { mimeType: 'audio/mp4', ext: 'm4a' };
+  }
+
+  return { mimeType: 'audio/webm', ext: 'webm' };
+}
+
 async function postAudioChunk(blob) {
   if (!currentEvent || !blob || blob.size < 3500) return;
 
+  const detectedType = blob.type || audioState.mimeType || 'audio/webm';
+  const fileInfo = getAudioFileInfo(detectedType);
+
   const form = new FormData();
   form.append('code', currentEvent.adminCode);
-  form.append('audio', new File([blob], 'chunk.webm', { type: 'audio/webm' }));
+  form.append('audio', new File([blob], `chunk.${fileInfo.ext}`, { type: fileInfo.mimeType }));
 
   const res = await fetch(`/api/events/${currentEvent.id}/transcribe`, {
     method: 'POST',
@@ -943,23 +960,57 @@ async function startTranslation() {
   setOnAirState(true);
   await enableScreenWakeLock();
 
-  audioState.recorder = new MediaRecorder(audioState.destination.stream, {
-    mimeType,
-    audioBitsPerSecond: 128000
-  });
-
-  audioState.recorder.ondataavailable = (event) => {
+  const startRecorderCycle = () => {
     if (!audioState.running) return;
-    if (event.data && event.data.size >= 3500) {
-      enqueueAudioBlob(event.data);
-    }
+
+    audioState.chunks = [];
+
+    const recorder = new MediaRecorder(audioState.destination.stream, {
+      mimeType,
+      audioBitsPerSecond: 128000
+    });
+
+    audioState.recorder = recorder;
+
+    recorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        audioState.chunks.push(event.data);
+      }
+    };
+
+    recorder.onstop = () => {
+      const finalType = recorder.mimeType || mimeType || 'audio/webm';
+      const blob = new Blob(audioState.chunks, { type: finalType });
+
+      audioState.chunks = [];
+      if (audioState.chunkTimer) {
+        clearTimeout(audioState.chunkTimer);
+        audioState.chunkTimer = null;
+      }
+
+      if (audioState.recorder === recorder) {
+        audioState.recorder = null;
+      }
+
+      if (audioState.running) {
+        startRecorderCycle();
+      }
+
+      if (blob.size >= 3500) {
+        enqueueAudioBlob(blob);
+      }
+    };
+
+    recorder.start();
+
+    audioState.chunkTimer = setTimeout(() => {
+      if (recorder.state === 'recording') {
+        recorder.stop();
+      }
+    }, 5200);
   };
 
-  audioState.recorder.onstop = () => {
-    audioState.recorder = null;
-  };
-
-  audioState.recorder.start(4500);
+  startRecorderCycle();
   setStatus('On-Air. Traduce din sursa selectată.');
 }
 
@@ -1323,4 +1374,4 @@ window.addEventListener('load', async () => {
       await openEventById(data.event.id);
     }
   } catch (_) {}
-}); 
+});
