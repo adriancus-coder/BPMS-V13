@@ -412,4 +412,4 @@ $('pauseAudioBtn')?.addEventListener('click', () => {
 try {
   window.speechSynthesis?.getVoices();
   window.speechSynthesis.onvoiceschanged = () => {};
-} catch (_) {}
+} catch (_) {} 
