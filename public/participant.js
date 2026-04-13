@@ -56,35 +56,6 @@ const HISTORY_MIN_ITEMS = 4;
 const HISTORY_MAX_ITEMS = 8;
 const HISTORY_CHAR_BUDGET = 900;
 
-let participantWakeLock = null;
-
-async function enableParticipantWakeLock() {
-  try {
-    if (!('wakeLock' in navigator)) return;
-    if (document.visibilityState !== 'visible') return;
-    if (participantWakeLock) return;
-
-    participantWakeLock = await navigator.wakeLock.request('screen');
-
-    participantWakeLock.addEventListener('release', () => {
-      participantWakeLock = null;
-    });
-  } catch (err) {
-    console.error('participant wake lock error:', err?.name || err, err?.message || '');
-  }
-}
-
-async function disableParticipantWakeLock() {
-  try {
-    if (participantWakeLock) {
-      await participantWakeLock.release();
-      participantWakeLock = null;
-    }
-  } catch (err) {
-    console.error('participant wake lock release error:', err?.name || err, err?.message || '');
-  }
-}
-
 function setStatus(text) {
   const el = $('participantStatus');
   if (el) el.textContent = text;
@@ -367,8 +338,6 @@ socket.on('joined_event', ({ event, role }) => {
   } else {
     setStatus('Conectat la eveniment.');
   }
-
-  enableParticipantWakeLock().catch(() => {});
 });
 
 socket.on('transcript_entry', (entry) => {
@@ -439,30 +408,6 @@ $('pauseAudioBtn')?.addEventListener('click', () => {
   stopSpeech();
   setStatus('Audio local în pauză.');
 });
-
-document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible') {
-    await enableParticipantWakeLock();
-  } else {
-    await disableParticipantWakeLock();
-  }
-});
-
-window.addEventListener('pageshow', async () => {
-  await enableParticipantWakeLock();
-});
-
-window.addEventListener('pagehide', async () => {
-  await disableParticipantWakeLock();
-});
-
-document.addEventListener('touchstart', () => {
-  enableParticipantWakeLock().catch(() => {});
-}, { passive: true });
-
-document.addEventListener('click', () => {
-  enableParticipantWakeLock().catch(() => {});
-}, { passive: true });
 
 try {
   window.speechSynthesis?.getVoices();
