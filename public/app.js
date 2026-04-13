@@ -1323,4 +1323,4 @@ window.addEventListener('load', async () => {
       await openEventById(data.event.id);
     }
   } catch (_) {}
-});
+}); 
