@@ -32,14 +32,6 @@ function getOrCreateParticipantId() {
   return id;
 }
 
-function escapeHtml(text) {
-  return String(text || '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
-
 const state = {
   fixedEventId: new URLSearchParams(window.location.search).get('event') || '',
   currentEvent: null,
@@ -52,9 +44,7 @@ const state = {
   participantId: getOrCreateParticipantId()
 };
 
-const HISTORY_MIN_ITEMS = 4;
-const HISTORY_MAX_ITEMS = 8;
-const HISTORY_CHAR_BUDGET = 900;
+const HISTORY_LIMIT = 6;
 
 function setStatus(text) {
   const el = $('participantStatus');
@@ -80,40 +70,15 @@ function getLatestEntry() {
   return entries.length ? entries[entries.length - 1] : null;
 }
 
-function getTextForEntry(entry) {
-  if (!entry) return '';
-  return entry.translations?.[state.currentLanguage] || entry.original || '';
-}
-
 function getHistoryEntries() {
   const entries = sortEntries(state.currentEvent?.transcripts || []);
   if (entries.length <= 1) return [];
+  return entries.slice(-1 - HISTORY_LIMIT, -1).reverse();
+}
 
-  const result = [];
-  let totalChars = 0;
-
-  for (let i = entries.length - 2; i >= 0; i--) {
-    const entry = entries[i];
-    const text = String(getTextForEntry(entry) || '').trim();
-    if (!text) continue;
-
-    const nextChars = totalChars + text.length;
-    const canForceAdd = result.length < HISTORY_MIN_ITEMS;
-    const canBudgetAdd = result.length < HISTORY_MAX_ITEMS && nextChars <= HISTORY_CHAR_BUDGET;
-
-    if (!canForceAdd && !canBudgetAdd) {
-      break;
-    }
-
-    result.push(entry);
-    totalChars = nextChars;
-
-    if (result.length >= HISTORY_MAX_ITEMS) {
-      break;
-    }
-  }
-
-  return result;
+function getTextForEntry(entry) {
+  if (!entry) return '';
+  return entry.translations?.[state.currentLanguage] || entry.original || '';
 }
 
 function detectPreferredSupportedLanguage(available = []) {
@@ -228,7 +193,11 @@ function renderHistory() {
     .map((entry) => {
       return `
         <div class="history-item participant-history-item" data-entry-id="${entry.id}">
-          <div class="history-text">${escapeHtml(getTextForEntry(entry))}</div>
+          <div class="history-text">${String(getTextForEntry(entry) || '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')}</div>
         </div>
       `;
     })
@@ -412,4 +381,4 @@ $('pauseAudioBtn')?.addEventListener('click', () => {
 try {
   window.speechSynthesis?.getVoices();
   window.speechSynthesis.onvoiceschanged = () => {};
-} catch (_) {} 
+} catch (_) {}
