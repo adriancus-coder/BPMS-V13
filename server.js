@@ -178,6 +178,60 @@ function mergeTranscriptText(prevText, nextText) {
   return `${prev} ${next}`.replace(/\s+/g, ' ').trim();
 }
 
+function splitLongPiece(piece) {
+  const clean = sanitizeTranscriptText(piece);
+  if (!clean) return [];
+
+  if (countWords(clean) <= 12 && clean.length <= 120) {
+    return [clean];
+  }
+
+  const softerParts = clean
+    .split(/(?<=[,;:])\s+|\s+(?=(?:și|si|dar|iar|ori|sau|og|men|for|som)\b)/i)
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  if (softerParts.length === 1) {
+    const words = clean.split(/\s+/).filter(Boolean);
+    const out = [];
+    let current = [];
+
+    for (const word of words) {
+      current.push(word);
+      if (current.length >= 10) {
+        out.push(current.join(' ').trim());
+        current = [];
+      }
+    }
+
+    if (current.length) {
+      out.push(current.join(' ').trim());
+    }
+
+    return out.filter(Boolean);
+  }
+
+  const out = [];
+  let current = '';
+
+  for (const part of softerParts) {
+    const candidate = current ? `${current} ${part}` : part;
+
+    if (countWords(candidate) <= 12 && candidate.length <= 120) {
+      current = candidate;
+    } else {
+      if (current) out.push(current.trim());
+      current = part;
+    }
+  }
+
+  if (current) {
+    out.push(current.trim());
+  }
+
+  return out.filter(Boolean);
+}
+
 function splitIntoDisplayChunks(text) {
   const clean = sanitizeTranscriptText(text);
   if (!clean) return [];
@@ -188,50 +242,35 @@ function splitIntoDisplayChunks(text) {
   const smallPieces = [];
 
   for (const sentence of sentenceUnits) {
-    if (countWords(sentence) <= 12 && sentence.length <= 120) {
-      smallPieces.push(sentence);
-      continue;
-    }
+    const commaUnits =
+      sentence.match(/[^,;:]+[,;:]?|[^,;:]+$/g)?.map((x) => x.trim()).filter(Boolean) || [sentence];
 
-    const softerParts = sentence
-      .split(/(?<=[,;:])\s+|\s+(?=(?:și|si|dar|iar|ori|sau|og|men|for|som)\b)/i)
-      .map((x) => x.trim())
-      .filter(Boolean);
+    let shortBuffer = '';
 
-    if (softerParts.length === 1) {
-      const words = sentence.split(/\s+/).filter(Boolean);
-      let current = [];
+    for (const unit of commaUnits) {
+      const unitWords = countWords(unit);
+      const endsCommaBoundary = /[,;:]\s*$/.test(unit);
 
-      for (const word of words) {
-        current.push(word);
-        if (current.length >= 10) {
-          smallPieces.push(current.join(' ').trim());
-          current = [];
-        }
+      if (endsCommaBoundary && unitWords >= 3) {
+        const candidate = shortBuffer ? `${shortBuffer} ${unit}` : unit;
+        splitLongPiece(candidate).forEach((piece) => smallPieces.push(piece));
+        shortBuffer = '';
+        continue;
       }
 
-      if (current.length) {
-        smallPieces.push(current.join(' ').trim());
+      const combined = shortBuffer ? `${shortBuffer} ${unit}` : unit;
+
+      if (countWords(combined) < 3 && !/[.!?]\s*$/.test(unit)) {
+        shortBuffer = combined;
+        continue;
       }
 
-      continue;
+      splitLongPiece(combined).forEach((piece) => smallPieces.push(piece));
+      shortBuffer = '';
     }
 
-    let current = '';
-
-    for (const part of softerParts) {
-      const candidate = current ? `${current} ${part}` : part;
-
-      if (countWords(candidate) <= 12 && candidate.length <= 120) {
-        current = candidate;
-      } else {
-        if (current) smallPieces.push(current.trim());
-        current = part;
-      }
-    }
-
-    if (current) {
-      smallPieces.push(current.trim());
+    if (shortBuffer) {
+      splitLongPiece(shortBuffer).forEach((piece) => smallPieces.push(piece));
     }
   }
 
@@ -270,6 +309,8 @@ function shouldFlushBufferedText(text) {
   const words = countWords(clean);
   const last = getLastWord(clean);
 
+  if (/[.!?]\s*$/.test(clean) && words >= 2) return true;
+  if (/[,;:]\s*$/.test(clean) && words >= 3) return true;
   if (words >= 6 && !BUFFER_CONNECTORS.has(last)) return true;
   if (words >= 9) return true;
 
